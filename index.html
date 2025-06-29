@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agent Cafe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'VT323', monospace;
+        background-color: #1f1a15;
+        overflow: hidden; /* Prevent scrollbars from appearing due to dragging */
+      }
+      img {
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-crisp-edges;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      .pixel-button {
+        background-color: #4a5568; /* gray-700 */
+        color: white;
+        padding: 0.75rem 1.5rem;
+        text-transform: uppercase;
+        box-shadow: 4px 4px 0px #2d3748; /* gray-800 */
+        transform: translate(0, 0);
+        transition: all 0.1s ease-in-out;
+      }
+      .pixel-button:hover:not(:disabled) {
+        box-shadow: 2px 2px 0px #2d3748;
+        transform: translate(2px, 2px);
+      }
+      .pixel-button:disabled {
+        background-color: #718096; /* gray-600 */
+        color: #a0aec0; /* gray-500 */
+        box-shadow: 4px 4px 0px #4a5568;
+        cursor: not-allowed;
+      }
+
+      .pixel-modal {
+        background-color: #3a2d21;
+        color: white;
+        border: 4px solid black;
+        box-shadow: 8px 8px 0px black;
+      }
+      
+      .pixel-input, .pixel-textarea, .pixel-select {
+        background-color: #2d3748;
+        border: 2px solid #1a202c;
+        padding: 0.5rem;
+        color: white;
+        width: 100%;
+      }
+       .pixel-input:focus, .pixel-textarea:focus, .pixel-select:focus {
+         outline: 2px solid #fbbF24; /* yellow-400 */
+       }
+
+       .pixel-header {
+         background-color: #4a5568;
+         padding: 0.5rem;
+         border-bottom: 4px solid black;
+       }
+
+       @keyframes talking {
+         0%, 100% { transform: translateY(0) scale(1.1); }
+         50% { transform: translateY(-5px) scale(1.1); }
+       }
+       .talking-animation {
+         animation: talking 0.5s ease-in-out infinite;
+       }
+      
+       @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+       }
+       .welcome-modal-animation {
+            animation: fadeInScale 0.3s ease-out forwards;
+       }
+
+       /* Custom styling for range inputs */
+      .pixel-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 16px;
+        background: #2d3748; /* gray-800 */
+        border: 2px solid #1a202c; /* gray-900 */
+        outline: none;
+        cursor: pointer;
+      }
+
+      .pixel-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        background: #fbbF24; /* yellow-400 */
+        border: 2px solid #1a202c;
+        box-shadow: 2px 2px 0px #1a202c;
+      }
+
+      .pixel-slider::-moz-range-thumb {
+        width: 20px; /* -2px for border */
+        height: 20px; /* -2px for border */
+        background: #fbbF24; /* yellow-400 */
+        border: 2px solid #1a202c;
+        box-shadow: 2px 2px 0px #1a202c;
+        cursor: pointer;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.7.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

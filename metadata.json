@@ -1,0 +1,6 @@
+{
+  "name": "AI Agent Cafe v. 0.1.0.02",
+  "description": "A virtual cafe where you can assign personas to different AI agents and watch them discuss topics you provide. Configure agents to use Gemini, OpenAI, or OpenRouter models and observe their collaborative conversations in real-time.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
