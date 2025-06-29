@@ -1,3 +1,5 @@
+![AI Agent Cafe](https://github.com/koosoli/AI-Agent-Cafe/blob/main/screenshots/Screenshot%202025-06-28%20234629.png)
+
 
 # AI Agent Cafe
 
@@ -5,7 +7,7 @@ Welcome to the AI Agent Cafe, a dynamic and interactive web application where yo
 
 This entire project is **Vibe Coded**—the code, pixel art, sound effects, and music are all generated with the assistance of large language models and other AI tools, showcasing a modern and rapid approach to application development.
 
-![AI Agent Cafe Screenshot](screenshots/Screenshot 2025-06-28 234629.png)
+
 
 ## ✨ Features
 
