@@ -7,7 +7,7 @@ Welcome to the AI Agent Cafe, a dynamic and interactive web application where yo
 
 This entire project is **Vibe Coded**—the code, pixel art, sound effects, and music are all generated with the assistance of large language models and other AI tools, showcasing a modern and rapid approach to application development.
 
-
+[![Video Title](https://img.youtube.com/vi/brGA3NAJAsw/0.jpg)](https://www.youtube.com/watch?v=brGA3NAJAsw)
 
 ## ✨ Features
 
