@@ -33,7 +33,7 @@ To run the AI Agent Cafe locally, you'll need to have Node.js and npm (or yarn) 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/koosoli/AI-Agent-Cafe.git
+git clone [https://github.com/koosoli/AI-Agent-Cafe.git](https://github.com/koosoli/AI-Agent-Cafe.git)
 cd ai-agent-cafe
 ```
 
