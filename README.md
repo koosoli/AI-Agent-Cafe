@@ -49,15 +49,16 @@ yarn install
 
 The application requires API keys to connect to the language models. The primary model used is Google Gemini, but you can configure agents to use OpenAI or OpenRouter as well.
 
-1.  **Create a `.env` file** in the root directory of the project.
+1.  **Create a `.env.local` file** in the root directory of the project.
 2.  **Add your Google Gemini API Key.** You can get one from [Google AI Studio](https://aistudio.google.com/). The application is configured to read this specific environment variable.
 
     ```
     # .env
-    API_KEY="YOUR_GEMINI_API_KEY_HERE"
+   GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
     ```
 
-3.  **For OpenAI or OpenRouter keys:** These are configured directly within the application's **Settings** modal on a per-agent basis. You do not need to put them in the `.env` file.
+3.  **For OpenAI or OpenRouter keys:** These are configured directly within the application's **Settings** modal on a per-agent basis. You do not need to put them in the `.env.local` file.
+  
 
 ### 4. Run the Development Server
 
