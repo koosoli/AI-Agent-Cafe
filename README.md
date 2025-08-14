@@ -4,7 +4,9 @@ Welcome to the AI Agent Cafe, a dynamic and interactive web application where yo
 
 This entire project is **Vibe Coded** by Olivier Koos. The code, pixel art, sound effects, and music are all generated with the assistance AI tools, showcasing a modern and rapid approach to application development.
 
-![AI Agent Cafe Screenshot](https://raw.githubusercontent.com/koosoli/AI-Agent-Cafe/main/public/screenshot.png)
+[![AI Agent Cafe Demo](https://github.com/koosoli/AI-Agent-Cafe/blob/main/public/giphy.gif?raw=true)](https://www.youtube.com/watch?v=T6NCCVWE_MI)
+
+[Click here for the YouTube presentation](https://www.youtube.com/watch?v=T6NCCVWE_MI)
 
 ## The Game: Mastering the Rooms
 
