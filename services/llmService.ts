@@ -307,12 +307,25 @@ export async function getAgentResponse(
     let userContentForApi: string | FormattedHistory;
     let userPromptForInspector: string;
     let effectiveModel = agent.llm.model;
-    
-    if (agent.llm.provider === LLMProviderEnum.GEMINI && !GEMINI_MODELS.includes(effectiveModel)) {
+    let effectiveProvider = agent.llm.provider;
+
+    // Fallback for tutorial agents to ensure a smooth start if other keys aren't set.
+    const isTutorialAgent = agent.id === 'TUTOR1' || agent.id === 'AK';
+    const noApiKeyForCurrentProvider = (
+        (agent.llm.provider === LLMProviderEnum.OPENAI && !state.services.openAiApiKey) ||
+        (agent.llm.provider === LLMProviderEnum.OPENROUTER && !state.services.openRouterApiKey) ||
+        (agent.llm.provider === LLMProviderEnum.LOCAL && !state.services.localApiUrl) ||
+        (agent.llm.provider === LLMProviderEnum.CUSTOM && !state.services.customApiUrl)
+    );
+
+    if (isTutorialAgent && noApiKeyForCurrentProvider && (state.services.geminiApiKey || process.env.API_KEY)) {
+        console.warn(`Tutorial agent "${agent.name}" has no key for ${agent.llm.provider}. Falling back to Gemini for stability.`);
+        effectiveProvider = LLMProviderEnum.GEMINI;
+        effectiveModel = 'gemini-2.5-flash';
+    } else if (agent.llm.provider === LLMProviderEnum.GEMINI && !GEMINI_MODELS.includes(effectiveModel)) {
         console.warn(`Agent "${agent.name}" selected invalid model "${effectiveModel}". The application is enforcing 'gemini-2.5-flash' for stability.`);
         effectiveModel = 'gemini-2.5-flash';
     }
-
 
     if (isDirectChat) {
         const history = formatDirectChatHistory(conversationHistory.slice(-6));
@@ -331,7 +344,7 @@ export async function getAgentResponse(
 
     const config: LLMCallConfig = {};
     // Only Gemini agents get the move tool. Others will not be able to move via LLM command.
-    if (movementEnabled && agent.roomId !== 'studio' && agent.llm.provider === LLMProviderEnum.GEMINI) {
+    if (movementEnabled && agent.roomId !== 'studio' && effectiveProvider === LLMProviderEnum.GEMINI) {
         config.tools = [moveTool as any];
     }
     // The Tutorial agent still needs to output JSON for the user profile.
@@ -339,7 +352,7 @@ export async function getAgentResponse(
         config.responseMimeType = "application/json";
     }
 
-    const { text: textResponse, usage, toolCalls } = await callLLM(agent.llm.provider, effectiveModel, systemInstruction, userContentForApi, state.services, config);
+    const { text: textResponse, usage, toolCalls } = await callLLM(effectiveProvider, effectiveModel, systemInstruction, userContentForApi, state.services, config);
     
     const parsedData = (agent.id === 'TUTOR1' && state.game.onboardingState === 'in_progress' && !state.userProfile.name)
         ? parseJsonResponse(textResponse)
@@ -350,7 +363,7 @@ export async function getAgentResponse(
         ...parsedData,
         usage: {
             ...usage,
-            provider: agent.llm.provider,
+            provider: effectiveProvider,
             model: effectiveModel,
         },
     };
@@ -364,7 +377,7 @@ export async function getAgentResponse(
             retrievedMemories: flatMemories,
             usage: {
                 ...usage,
-                provider: agent.llm.provider,
+                provider: effectiveProvider,
                 model: effectiveModel,
             }
         },

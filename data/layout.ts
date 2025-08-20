@@ -28,15 +28,15 @@ export const ZONES: Record<string, Rect> = {
 };
 
 export const INTERACTIVE_OBJECTS = {
-    PLAYER_EASEL: { id: 'PLAYER_EASEL', left: 1475, top: 2250, width: 75, height: 150, roomId: 'art_studio' },
-    AGENT_EASEL_1: { id: 'AGENT_EASEL_1', left: 1200, top: 2200, width: 75, height: 150, roomId: 'art_studio' },
-    AGENT_EASEL_2: { id: 'AGENT_EASEL_2', left: 1725, top: 2200, width: 75, height: 150, roomId: 'art_studio' },
-    AGENT_EASEL_3: { id: 'AGENT_EASEL_3', left: 1525, top: 2100, width: 75, height: 150, roomId: 'art_studio' },
-    GROUNDING_COMPUTER: { id: 'GROUNDING_COMPUTER', left: 3450, top: 550, width: 50, height: 70, roomId: 'classroom' },
-    VIBE_COMPUTER: { id: 'VIBE_COMPUTER', left: 2260, top: 1080, width: 50, height: 70, roomId: 'office' },
-    MODEL_COMPARISON_TERMINAL: { id: 'MODEL_COMPARISON_TERMINAL', left: 2175, top: 1400, width: 50, height: 70, roomId: 'office' },
-    SCREENPLAY_TERMINAL: { id: 'SCREENPLAY_TERMINAL', left: 525, top: 2030, width: 50, height: 70, roomId: 'studio' },
-    GAME_BOARD: { id: 'GAME_BOARD', left: 3425, top: 1475, width: 50, height: 50, roomId: 'dungeon' },
+    PLAYER_EASEL: { id: 'PLAYER_EASEL', name: 'Art Easel', left: 1475, top: 2250, width: 75, height: 150, roomId: 'art_studio' },
+    AGENT_EASEL_1: { id: 'AGENT_EASEL_1', name: 'Artwork', left: 1200, top: 2200, width: 75, height: 150, roomId: 'art_studio' },
+    AGENT_EASEL_2: { id: 'AGENT_EASEL_2', name: 'Artwork', left: 1725, top: 2200, width: 75, height: 150, roomId: 'art_studio' },
+    AGENT_EASEL_3: { id: 'AGENT_EASEL_3', name: 'Artwork', left: 1525, top: 2100, width: 75, height: 150, roomId: 'art_studio' },
+    GROUNDING_COMPUTER: { id: 'GROUNDING_COMPUTER', name: 'Grounding Terminal', left: 3450, top: 550, width: 50, height: 70, roomId: 'classroom' },
+    VIBE_COMPUTER: { id: 'VIBE_COMPUTER', name: 'Vibe-Coding Terminal', left: 2260, top: 1080, width: 50, height: 70, roomId: 'office' },
+    MODEL_COMPARISON_TERMINAL: { id: 'MODEL_COMPARISON_TERMINAL', name: 'Model Comparison Terminal', left: 2175, top: 1400, width: 50, height: 70, roomId: 'office' },
+    SCREENPLAY_TERMINAL: { id: 'SCREENPLAY_TERMINAL', name: 'Typewriter', left: 525, top: 2030, width: 50, height: 70, roomId: 'studio' },
+    GAME_BOARD: { id: 'GAME_BOARD', name: 'D&D Game Board', left: 3425, top: 1475, width: 50, height: 50, roomId: 'dungeon' },
 };
 
 

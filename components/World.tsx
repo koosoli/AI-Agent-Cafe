@@ -3,7 +3,7 @@ import type { Agent, Message, DojoBelt, WorldImageArtifact, Memory } from '../ty
 import Character from './Character.tsx';
 import Scenery from './Scenery.tsx';
 import { USER_AGENT } from '../constants.ts';
-import { ADD_AGENT_LOCATIONS } from '../data/layout.ts';
+import { ADD_AGENT_LOCATIONS, INTERACTIVE_OBJECTS } from '../data/layout.ts';
 import { PlusIcon } from './icons.tsx';
 
 interface WorldProps {
@@ -36,7 +36,30 @@ interface WorldProps {
   onTouchMove: (e: React.TouchEvent) => void;
   onTouchEnd: (e: React.TouchEvent) => void;
   onWorldArtifactClick: (artifact: WorldImageArtifact) => void;
+  proximityFlags: {
+    isNearArtEasel: boolean;
+    isNearGroundingComputer: boolean;
+    isNearVibeComputer: boolean;
+    isNearScreenplayTerminal: boolean;
+    isNearModelComparisonTerminal: boolean;
+    isNearGameBoard: boolean;
+  };
 }
+
+const InteractionLabel = ({ text, x, y }: { text: string; x: number; y: number }) => (
+    <div
+      className="absolute bg-black/70 text-white text-base px-3 py-1 border-2 border-black pointer-events-none z-[1000] activity-bubble-animation"
+      style={{
+        left: x,
+        top: y,
+        transform: 'translate(-50%, -120%)',
+        textShadow: '1px 1px #000',
+        boxShadow: '2px 2px 0px black'
+      }}
+    >
+      {text}
+    </div>
+);
 
 const MoveTargetIndicator = ({ x, y }: { x: number; y: number }) => (
   <div
@@ -55,7 +78,7 @@ const MoveTargetIndicator = ({ x, y }: { x: number; y: number }) => (
   </div>
 );
 
-const World = React.forwardRef<HTMLDivElement, WorldProps>(({ agents, currentSubtitle, selectedAgentId, targetAgentId, participantIds, thinkingAgentId, thinkingMemories, viewport, playerRoomId, displayedImageUrl, worldArtifacts, moveTarget, agentElementRefs, onViewportChange, onDragStart, onAgentClick, onAgentDoubleClick, onAddAgentClick, onArtEaselClick, onGroundingComputerClick, onVibeComputerClick, onScreenplayTerminalClick, onModelComparisonTerminalClick, onGameBoardClick, onWorldTouchStart, onAgentTouchStart, onTouchMove, onTouchEnd, onWorldArtifactClick }, ref) => {
+const World = React.forwardRef<HTMLDivElement, WorldProps>(({ agents, currentSubtitle, selectedAgentId, targetAgentId, participantIds, thinkingAgentId, thinkingMemories, viewport, playerRoomId, displayedImageUrl, worldArtifacts, moveTarget, agentElementRefs, onViewportChange, onDragStart, onAgentClick, onAgentDoubleClick, onAddAgentClick, onArtEaselClick, onGroundingComputerClick, onVibeComputerClick, onScreenplayTerminalClick, onModelComparisonTerminalClick, onGameBoardClick, onWorldTouchStart, onAgentTouchStart, onTouchMove, onTouchEnd, onWorldArtifactClick, proximityFlags }, ref) => {
   const activeAgentId = currentSubtitle?.agentId || null;
   
   const handleBackgroundClick = useCallback(() => onAgentClick(''), [onAgentClick]);
@@ -94,6 +117,15 @@ const World = React.forwardRef<HTMLDivElement, WorldProps>(({ agents, currentSub
               onWorldArtifactClick={onWorldArtifactClick}
             />
             {moveTarget && <MoveTargetIndicator x={moveTarget.x} y={moveTarget.y} />}
+
+            {/* Render Interaction Labels */}
+            {proximityFlags.isNearArtEasel && <InteractionLabel text={INTERACTIVE_OBJECTS.PLAYER_EASEL.name} x={INTERACTIVE_OBJECTS.PLAYER_EASEL.left + INTERACTIVE_OBJECTS.PLAYER_EASEL.width / 2} y={INTERACTIVE_OBJECTS.PLAYER_EASEL.top} />}
+            {proximityFlags.isNearGroundingComputer && <InteractionLabel text={INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.name} x={INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.left + INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.width / 2} y={INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.top} />}
+            {proximityFlags.isNearVibeComputer && <InteractionLabel text={INTERACTIVE_OBJECTS.VIBE_COMPUTER.name} x={INTERACTIVE_OBJECTS.VIBE_COMPUTER.left + INTERACTIVE_OBJECTS.VIBE_COMPUTER.width / 2} y={INTERACTIVE_OBJECTS.VIBE_COMPUTER.top} />}
+            {proximityFlags.isNearScreenplayTerminal && <InteractionLabel text={INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.name} x={INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.left + INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.width / 2} y={INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.top} />}
+            {proximityFlags.isNearModelComparisonTerminal && <InteractionLabel text={INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.name} x={INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.left + INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.width / 2} y={INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.top} />}
+            {proximityFlags.isNearGameBoard && <InteractionLabel text={INTERACTIVE_OBJECTS.GAME_BOARD.name} x={INTERACTIVE_OBJECTS.GAME_BOARD.left + INTERACTIVE_OBJECTS.GAME_BOARD.width / 2} y={INTERACTIVE_OBJECTS.GAME_BOARD.top} />}
+
             {/* Render Add Agent buttons */}
             {playerRoomId && ADD_AGENT_LOCATIONS[playerRoomId] && (
                 <div

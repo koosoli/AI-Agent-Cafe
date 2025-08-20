@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import VictoryAnimation from './VictoryAnimation.tsx';
 import SuperAgentUnlockAnimation from './SuperAgentUnlockAnimation.tsx';
@@ -8,6 +8,40 @@ import { useAppStore } from '../hooks/useAppContext.ts';
 import { ROOMS } from '../data/rooms.ts';
 import { USER_AGENT } from '../constants.ts';
 import FpsCounter from './FpsCounter.tsx';
+
+const ToastNotification: React.FC = () => {
+    const toast = useAppStore(s => s.ui.toast);
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        if (toast) {
+            setIsVisible(true);
+            const timer = setTimeout(() => {
+                setIsVisible(false);
+            }, 3500); // Fade out before it's removed from state
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
+
+    if (!toast) {
+        return null;
+    }
+
+    return (
+        <div
+            key={toast.id}
+            className={`fixed bottom-28 left-1/2 -translate-x-1/2 bg-black/80 text-white text-lg px-4 py-2 border-2 border-yellow-400 pointer-events-none z-[2000] transition-all duration-300 ease-out ${
+                isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+            }`}
+            style={{
+                textShadow: '2px 2px #000',
+                boxShadow: '4px 4px 0px black'
+            }}
+        >
+            {toast.message}
+        </div>
+    );
+};
 
 const Overlays: React.FC = () => {
     const { 
@@ -57,6 +91,7 @@ const Overlays: React.FC = () => {
             {victoryRoomId && <VictoryAnimation key={victoryRoomId} />}
             {showUnlockAnimation && <SuperAgentUnlockAnimation onComplete={handleUnlockAnimationComplete} />}
             {displayedRoomName && !isWelcomeModalOpen && <RoomNameIndicator roomName={displayedRoomName} />}
+            <ToastNotification />
         </>
     );
 };

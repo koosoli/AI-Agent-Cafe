@@ -3,7 +3,7 @@
 
 export const GAME_CONFIG = {
   // --- Player Movement ---
-  PLAYER_SPEED: 4.0,
+  PLAYER_SPEED: 5.0,
   RUN_MULTIPLIER: 2.5,
 
   // --- AI Behavior ---

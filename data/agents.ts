@@ -208,7 +208,7 @@ const AGENT_DATA: Omit<Agent, 'memoryStream' | 'persona'>[] = [
   },
   {
     id: 'LOVECRAFT1',
-    name: 'H.P. Lovecraft',
+    name: 'Lovecraft',
     useModelAsName: false,
     personaTemplateId: 'H.P. Lovecraft',
     llm: { provider: LLMProvider.GEMINI, model: 'gemini-2.5-flash' },

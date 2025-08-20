@@ -40,7 +40,7 @@ const getMinimalInitialState = (): AppState => ({
         isSocialGraphModalOpen: false, isMenuOpen: false, isNearArtEasel: false, isNearGroundingComputer: false,
         isNearVibeComputer: false, isNearScreenplayTerminal: false, isNearModelComparisonTerminal: false,
         isNearGameBoard: false, isInspectorMode: false, inspectorData: null, isWorldArtifactModalOpen: false, worldArtifactToInspect: null,
-        isFullscreen: false, displayedRoomName: null, showFps: false,
+        isFullscreen: false, displayedRoomName: null, showFps: false, toast: null,
     },
     game: {
         sessionId: `session-${Date.now()}`, masteredRooms: [], victoryRoomId: null, allRoomsMastered: false,
@@ -97,6 +97,7 @@ interface AppActions {
     updateRelationship: (agentA_Id: string, agentB_Id: string, change: number) => void;
     setAgentGreeting: (agentId: string, greeting: { text: string; timestamp: number } | null) => void;
     hydrateState: () => void;
+    showToast: (message: string) => void;
 }
 
 // Create the Zustand store
@@ -271,7 +272,17 @@ export const useAppStore = createWithEqualityFn<AppState & AppActions>()(
 
         // Mutate the draft state directly
         Object.assign(state, mergedState);
-    })
+    }),
+    showToast: (message) => {
+      const id = Date.now();
+      set(state => { state.ui.toast = { message, id }; });
+      setTimeout(() => {
+        const currentState = get();
+        if (currentState.ui.toast?.id === id) {
+          set(state => { state.ui.toast = null; });
+        }
+      }, 4000);
+    },
   })),
   Object.is
 );
