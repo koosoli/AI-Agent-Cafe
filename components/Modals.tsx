@@ -35,7 +35,7 @@ const Modals: React.FC = () => {
     }), shallow);
     
     const {
-        setUiState, setAudioState, setAgents, setGameState, addArtifact, logApiUsage, addMessage
+        setUiState, setAudioState, setAgents, setGameState, addArtifact, logApiUsage, addMessage, showToast
     } = useAppStore.getState();
 
     const { initialModalPrompt } = ui;
@@ -98,18 +98,23 @@ const Modals: React.FC = () => {
 
     const handleImageModalClose = useCallback((getFeedback: boolean) => {
         setUiState({ isImageGenerationModalOpen: false });
-        // Feedback logic now lives inside useConversationManager, triggered by state change
-    }, [setUiState]);
+        if (getFeedback && useAppStore.getState().game.lastArtPrompt) {
+            setGameState({ 
+                artStudioChallengeState: { status: 'critique_given', feedbackCount: (useAppStore.getState().game.artStudioChallengeState?.feedbackCount || 0) + 1 },
+                triggerDiscussion: { prompt: `I've created an image based on the prompt "${useAppStore.getState().game.lastArtPrompt}". What do you think?`, targetAgentId: null }
+            });
+        }
+    }, [setUiState, setGameState]);
 
     const handleGroundedSearch = useCallback(async (query: string) => {
         try {
             const { text, groundingChunks } = await llmService.getGroundedSearch(query, services);
             logApiUsage({ type: 'llm', provider: LLMProvider.GEMINI, model: 'gemini-2.5-flash', promptTokens: 0, completionTokens: 0 });
             addMessage({ id: `msg-${Date.now()}`, agentId: 'user', text: `(Searched: "${query}")\n\n${text}`, timestamp: Date.now(), groundingChunks });
-            // Challenge logic now lives inside useConversationManager
+            setGameState({ classroomChallengeState: { ...useAppStore.getState().game.classroomChallengeState!, status: 'researched' } });
             return { text, groundingChunks };
         } catch(err) { throw err; }
-    }, [services, logApiUsage, addMessage]);
+    }, [services, logApiUsage, addMessage, setGameState]);
     
     // ... Other handlers moved from App.tsx ...
     const handleVibeCodeGeneration = useCallback(async (description: string, model: string) => {
@@ -124,20 +129,39 @@ const Modals: React.FC = () => {
         setUiState({ isVibeCodingModalOpen: false, initialModalPrompt: null, vibeCodingArtifactToPreview: null });
         if (getFeedback && code && prompt) {
             const currentGameState = useAppStore.getState().game;
-            setGameState({
-                officeChallengeState: {
-                    status: 'critique_needed',
-                    lastCode: code,
-                    lastPrompt: prompt,
-                    feedbackCount: (currentGameState.officeChallengeState?.feedbackCount || 0) + 1,
-                },
-                triggerDiscussion: {
-                    prompt: `I've created a component based on the prompt "${prompt}". What do you think? Please give me some feedback.`,
-                    targetAgentId: null
-                }
-            });
+            if (currentGameState.officeChallengeState?.status === 'critique_needed') {
+                 // This is the user submitting their revision for final evaluation.
+                showToast("Revision submitted! Let's see what the designer thinks.");
+                setGameState({
+                    officeChallengeState: {
+                        ...currentGameState.officeChallengeState,
+                        status: 'final_submission',
+                        lastCode: code,
+                        lastPrompt: prompt,
+                    },
+                    triggerDiscussion: {
+                        prompt: `I've revised the component based on your feedback using the prompt: "${prompt}". Is this better?`,
+                        targetAgentId: 'UIUX1' // Target the moderator for evaluation
+                    }
+                });
+            } else {
+                // This is the first submission, asking for initial feedback.
+                showToast("Critique received! Refine your prompt and generate again.");
+                setGameState({
+                    officeChallengeState: {
+                        status: 'critique_needed',
+                        lastCode: code,
+                        lastPrompt: prompt,
+                        feedbackCount: (currentGameState.officeChallengeState?.feedbackCount || 0) + 1,
+                    },
+                    triggerDiscussion: {
+                        prompt: `I've created a component based on the prompt "${prompt}". What do you think? Please give me some feedback.`,
+                        targetAgentId: null
+                    }
+                });
+            }
         }
-    }, [setUiState, setGameState]);
+    }, [setUiState, setGameState, showToast]);
     
     const handleSaveCodeArtifact = useCallback((artifact: CodeArtifact) => addArtifact(artifact), [addArtifact]);
     

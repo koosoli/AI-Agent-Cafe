@@ -107,7 +107,7 @@ export const useViewportManager = (
 
   useEffect(() => {
     let animationFrameId: number;
-    const lerpFactor = 0.1;
+    const lerpFactor = 0.15;
     const animate = () => {
       if (!isAnyModalOpen) {
         setViewport(current => {

@@ -318,6 +318,7 @@ export interface AppState {
         isFullscreen: boolean;
         displayedRoomName: string | null;
         showFps: boolean;
+        toast: { message: string; id: number } | null;
     };
     game: {
         sessionId: string;

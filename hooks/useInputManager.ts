@@ -83,8 +83,8 @@ export const useInputManager = (props: InputManagerProps) => {
           }
           lastPanEvent.current = { x: e.clientX, y: e.clientY, time: now };
 
-          const dx = (e.clientX - currentDragState.start.x);
-          const dy = (e.clientY - currentDragState.start.y);
+          const dx = (e.clientX - currentDragState.start.x) / currentViewport.scale;
+          const dy = (e.clientY - currentDragState.start.y) / currentViewport.scale;
           const newOffset = { x: currentDragState.initialOffset.x + dx, y: currentDragState.initialOffset.y + dy };
           
           setViewport(v => ({ ...v, offset: newOffset }));
@@ -107,8 +107,8 @@ export const useInputManager = (props: InputManagerProps) => {
 
           if (velocityMagnitude > MIN_VELOCITY_THRESHOLD) {
               const currentViewport = viewportRefForCallbacks.current;
-              const newTargetX = currentViewport.offset.x + (panVelocity.current.x * MOMENTUM_FACTOR);
-              const newTargetY = currentViewport.offset.y + (panVelocity.current.y * MOMENTUM_FACTOR);
+              const newTargetX = currentViewport.offset.x + (panVelocity.current.x * MOMENTUM_FACTOR / currentViewport.scale);
+              const newTargetY = currentViewport.offset.y + (panVelocity.current.y * MOMENTUM_FACTOR / currentViewport.scale);
               setTargetViewport({ scale: currentViewport.scale, offset: { x: newTargetX, y: newTargetY } });
           }
           panVelocity.current = { x: 0, y: 0 };
@@ -378,7 +378,7 @@ export const useInputManager = (props: InputManagerProps) => {
     const worldX = (mouseX / current.scale) - current.offset.x;
     const worldY = (mouseY / current.scale) - current.offset.y;
 
-    const newScale = Math.min(Math.max(0.1, current.scale * Math.pow(0.999, e.deltaY)), 2.5);
+    const newScale = Math.min(Math.max(0.1, current.scale * Math.pow(0.998, e.deltaY)), 2.5);
     if (newScale === current.scale) return;
 
     const newOffsetX = (mouseX / newScale) - worldX;

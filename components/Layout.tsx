@@ -65,6 +65,15 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
   const focusViewport = useAppStore(s => s.focusViewport);
   
   // --- Proximity Detection for Interactive Objects ---
+  const proximityFlags = useAppStore(s => ({
+      isNearArtEasel: s.ui.isNearArtEasel,
+      isNearGroundingComputer: s.ui.isNearGroundingComputer,
+      isNearVibeComputer: s.ui.isNearVibeComputer,
+      isNearScreenplayTerminal: s.ui.isNearScreenplayTerminal,
+      isNearModelComparisonTerminal: s.ui.isNearModelComparisonTerminal,
+      isNearGameBoard: s.ui.isNearGameBoard,
+  }), shallow);
+
   useEffect(() => {
     if (!player) return;
 
@@ -81,7 +90,7 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
 
     const PROXIMITY_DISTANCE = 150;
 
-    const proximityStates = {
+    const newProximityStates = {
         isNearArtEasel: checkProximity('PLAYER_EASEL', PROXIMITY_DISTANCE),
         isNearGroundingComputer: checkProximity('GROUNDING_COMPUTER', PROXIMITY_DISTANCE),
         isNearVibeComputer: checkProximity('VIBE_COMPUTER', PROXIMITY_DISTANCE),
@@ -91,16 +100,15 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
     };
     
     // Only update if there's a change to avoid unnecessary re-renders
-    const currentState = useAppStore.getState().ui;
-    const hasChanged = Object.keys(proximityStates).some(key => 
-        proximityStates[key as keyof typeof proximityStates] !== currentState[key as keyof typeof proximityStates]
+    const hasChanged = Object.keys(newProximityStates).some(key => 
+        newProximityStates[key as keyof typeof newProximityStates] !== proximityFlags[key as keyof typeof proximityFlags]
     );
 
     if (hasChanged) {
-        setUiState(proximityStates);
+        setUiState(newProximityStates);
     }
 
-  }, [player?.position.left, player?.position.top, player?.roomId, setUiState]);
+  }, [player?.position.left, player?.position.top, player?.roomId, setUiState, proximityFlags]);
 
   const handleAgentMove = useCallback((agentId: string, newPos: { left: number, top: number }, isDragging = false) => {
     const currentAgents = useAppStore.getState().agents;
@@ -297,12 +305,30 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
   }, [audio.musicMuted, audio.sfxMuted]);
 
   useEffect(() => {
-    const playBark = async () => {
+    const playBark = () => {
       const state = useAppStore.getState();
       if (state.isLoading || state.ui.isAnyModalOpen) return;
+      
       const welcomeText = "Hey you, you look lost! Come over here and I'll explain how things work. You can walk with the arrow keys, WASD, or a controller.";
+      
+      // Set the visual greeting bubble
       state.setAgentGreeting('TUTOR1', { text: welcomeText, timestamp: Date.now() });
-      if (state.audio.ttsEnabled) { /* ... speech logic ... */ }
+      
+      // Play the sound effect and TTS
+      audioService.playMessageSound();
+      const { ttsEnabled, agentVoices, ttsVolume } = state.audio;
+      const { elevenLabsApiKey, openAiApiKey, microsoftApiKey, microsoftApiRegion } = state.services;
+
+      if (ttsEnabled) {
+          const voiceURI = agentVoices['TUTOR1'] || null;
+          if (voiceURI) {
+              if (voiceURI.startsWith('openai:')) state.logApiUsage({ type: 'tts', provider: 'OpenAI', characters: welcomeText.length });
+              else if (voiceURI.startsWith('elevenlabs:')) state.logApiUsage({ type: 'tts', provider: 'ElevenLabs', characters: welcomeText.length });
+              else if (voiceURI.startsWith('microsoft:')) state.logApiUsage({ type: 'tts', provider: 'Microsoft', characters: welcomeText.length });
+              
+              speechService.speak(welcomeText, voiceURI, ttsVolume, openAiApiKey, elevenLabsApiKey, microsoftApiKey, microsoftApiRegion);
+          }
+      }
     };
     if (!ui.isWelcomeModalOpen && audio.ready && game.onboardingState === 'needed' && !onboardingBarkPlayed.current) {
       onboardingBarkPlayed.current = true;
@@ -348,6 +374,7 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
               moveTarget={moveTarget}
               agentElementRefs={agentElementRefs}
               onWorldArtifactClick={handleWorldArtifactClick}
+              proximityFlags={proximityFlags}
               {...inputHandlers}
             />
         </ErrorBoundary>

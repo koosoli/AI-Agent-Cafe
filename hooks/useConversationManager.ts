@@ -17,8 +17,31 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const splitIntoSentences = (text: string): string[] => {
   if (!text) return [];
-  const chunks = text.match(/[^.!?]+[.!?]*|[^.!?]+$/g) || [];
-  return chunks.map(chunk => chunk.trim()).filter(chunk => chunk.length > 0);
+  const initialChunks: string[] = text.match(/[^.!?]+[.!?]*|[^.!?]+$/g) || [];
+  
+  const mergedChunks: string[] = [];
+  let buffer = '';
+
+  initialChunks.forEach((chunk) => {
+    const trimmedChunk = chunk.trim();
+    // Check for single-letter initial (e.g., "H.") or short abbreviation (e.g., "U.S.")
+    if (/^[A-Z]\.$/.test(trimmedChunk) || /^[A-Z]{2,}\.$/.test(trimmedChunk)) {
+      buffer += trimmedChunk + ' ';
+    } else {
+      if (buffer) {
+        mergedChunks.push((buffer + trimmedChunk).trim());
+        buffer = '';
+      } else {
+        mergedChunks.push(trimmedChunk);
+      }
+    }
+  });
+
+  if (buffer) {
+    mergedChunks.push(buffer.trim());
+  }
+
+  return mergedChunks.filter(chunk => chunk.length > 0);
 };
 
 interface ConversationManagerOptions {

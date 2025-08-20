@@ -23,12 +23,12 @@ To help you tackle the challenges and experiment freely, the world is equipped w
 -   **Dynamic AI Conversations:** Initiate real-time discussions. Watch agents build on each other's points as they explore topics.
 -   **Voice-Enabled Interaction:**
     -   **Text-to-Speech (TTS):** Hear agents speak their responses aloud. This feature is disabled by default and can be enabled in the Settings menu. Each agent can be assigned a unique voice from your browser's available options or from **OpenAI**, **ElevenLabs**, and **Microsoft Azure** if you provide the appropriate API keys.
-    -   **Speech-to-Text (STT):** Click the microphone icon or press the 'Y' / '△' button on a gamepad to dictate your prompts with your voice.
+    -   **Speech-to-Text (STT):** Click the microphone icon or press the 'Y' / '△' button on a gamepad to dictate your prompts with your voice. The STT is powered by the Web Speech API built into modern browsers (like Chrome), making it fast and responsive without requiring a separate API key.
 -   **Interactive Objects & Challenges:**
     -   **The Dojo of Alignment:** Learn the fundamentals of AI alignment in a zen garden setting. Instead of fighting, you must "tune" the AI Sensei's core values (like Helpfulness, Honesty, and Safety) using a set of interactive sliders. The Sensei will present you with various scenarios, and your goal is to adjust its neural weights to produce a wise and well-aligned response.
     -   **The D&D Game Board (Dungeon Room):** The ultimate role-playing challenge. Interact with the glowing game board to launch a mini D&D session. You'll create a character and play through a short, dynamic adventure narrated by the Dungeon Master agent. The Knight and Rogue agents join your party, reacting to your choices. To master this room, you must impress the DM with creative, in-character decisions that drive the story forward.
     -   **The Art Easel (Art Studio):** Collaborate with generative AI to create images. Use the large, glowing easel to enter a prompt. The resident master artists will then critique your prompt, offering feedback. To master this room, you must take their criticism and refine your prompt, demonstrating true human-AI collaboration.
-    -   **The Grounding Terminal (Library):** The historical authors in the library don't know about recent events. Use this glowing terminal to perform Google Search-grounded lookups for factual, up-to-date information, complete with sources. This teaches the difference between creative generation and factual retrieval.
+    -   **The Grounding Terminal (Library & Classroom):** The historical authors in the library don't know about recent events. Use this glowing terminal to perform Google Search-grounded lookups for factual, up-to-date information, complete with sources. This teaches the difference between creative generation and factual retrieval.
     -   **The Vibe-Coding Terminal (Tech Office):** Master the art of rapid prototyping by giving this terminal a high-level "vibe" for a UI component (e.g., "a cool retro button that glows"). It will generate the HTML, CSS, and JS, showing it in a live preview.
     -   **Iterative Screenwriting (Writer's Studio):** The challenge here is a multi-turn collaboration. The AI director sets a scene, you add a detail, the AI writers build on your idea, and the cycle continues. Master this room by successfully contributing to the creative process over several rounds.
 -   **Consolidated Header Menu:** Access all major tools like the **Objective Tracker**, **Social Graph**, **Inventory**, **Chat Log**, and **Settings** from a single, clean menu in the top-right header.
@@ -74,13 +74,24 @@ yarn install
 
 ### 3. Set Up API Keys
 
-Create a .env.local file in the root directory of the project.
-Add your Google Gemini API Key. You can get one from Google AI Studio. The application is configured to read the `API_KEY` environment variable.
+#### **Primary Key (Google Gemini)**
+The application is designed to work out-of-the-box with a Google Gemini API key, which powers the core tutorial and default agents.
+
+1.  Create a `.env.local` file in the root directory of the project.
+2.  Add your Google Gemini API Key. You can get one from [Google AI Studio](https://aistudio.google.com/app/apikey). The application is configured to read the `API_KEY` environment variable.
+
 ```
 # .env.local
 API_KEY="YOUR_GEMINI_API_KEY_HERE"
 ```
-For OpenAI, OpenRouter, ElevenLabs, and Microsoft Azure keys: These are configured directly within the application's **Settings modal**. You only need to enter them once. You do not need to put them in the .env.local file.
+
+#### **Optional Keys (OpenAI, OpenRouter, Voice, etc.)**
+For all other services (OpenAI, OpenRouter, ElevenLabs, Microsoft Azure), keys are configured **directly within the application's Settings modal**.
+
+1.  Launch the application.
+2.  Click the menu icon in the top-right corner, then select **Settings**.
+3.  In the **General** tab, enter your keys for any services you wish to use.
+4.  Use the "Test" button next to each key to verify it. After a successful test, you can use the corresponding models or voices in the agent editor.
 
 ### 4. Alternative AI Endpoints
 
