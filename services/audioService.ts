@@ -8,7 +8,9 @@ const getAssetPath = (path: string) => {
   // ensure no double slashes if base ends with / and path starts with /
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${cleanBase}${cleanPath}`;
+  const finalPath = `${cleanBase}${cleanPath}`;
+  console.log(`[Audio Debug] Resolved path for ${path}: ${finalPath} (Base: ${baseUrl})`);
+  return finalPath;
 }
 
 // Paths to audio files in the 'public' folder
@@ -174,7 +176,7 @@ const playSound = (path: string, volume: number = 1.0) => {
     const sound = new Audio(url);
     sound.volume = volume * sfxMasterVolume;
     sound.play().catch(e => {
-      if ((e as DOMException).name !== 'AbortError') console.warn(`SFX play interrupted for ${path}:`, e);
+      console.warn(`[Audio Debug] SFX play failed for ${path} (url: ${url}):`, e);
     });
   }
 
