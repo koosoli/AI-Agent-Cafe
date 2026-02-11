@@ -2,19 +2,29 @@
 // It uses a blob-caching strategy to bypass cross-origin issues in sandboxed environments.
 
 // Paths to audio files in the 'public' folder
-const MESSAGE_SOUND_PATH = '/soundfiles/chat.mp3';
-const WALKING_SOUND_PATH = '/soundfiles/walking.mp3';
-const MENU_MUSIC_PATH = '/soundfiles/music/Menu.mp3';
-const OUTSIDE_AMBIENCE_PATH = '/soundfiles/outside.mp3';
-const VICTORY_SOUND_PATH = '/soundfiles/star_won.mp3';
-const SKYNET_TYPING_SOUND_PATH = '/soundfiles/typing.mp3';
+// Helper to verify paths properly handling the base URL
+const getAssetPath = (path: string) => {
+  const baseUrl = import.meta.env.BASE_URL;
+  // ensure no double slashes if base ends with / and path starts with /
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
+// Paths to audio files in the 'public' folder
+const MESSAGE_SOUND_PATH = getAssetPath('/soundfiles/chat.mp3');
+const WALKING_SOUND_PATH = getAssetPath('/soundfiles/walking.mp3');
+const MENU_MUSIC_PATH = getAssetPath('/soundfiles/music/Menu.mp3');
+const OUTSIDE_AMBIENCE_PATH = getAssetPath('/soundfiles/outside.mp3');
+const VICTORY_SOUND_PATH = getAssetPath('/soundfiles/star_won.mp3');
+const SKYNET_TYPING_SOUND_PATH = getAssetPath('/soundfiles/typing.mp3');
 
 // Available background music tracks
 export const MUSIC_TRACKS = {
   'None': '',
-  'Pixel Quest': '/soundfiles/music/Pixel_Quest.mp3', // For AI Cafe, Outside
-  'Creative Mind': '/soundfiles/music/Menu.mp3',      // For Studio & Office
-  'Deep Thought': '/soundfiles/music/Menu.mp3',       // Placeholder for Philo Cafe
+  'Pixel Quest': getAssetPath('/soundfiles/music/Pixel_Quest.mp3'), // For AI Cafe, Outside
+  'Creative Mind': getAssetPath('/soundfiles/music/Menu.mp3'),      // For Studio & Office
+  'Deep Thought': getAssetPath('/soundfiles/music/Menu.mp3'),       // Placeholder for Philo Cafe
 };
 
 const audioCache = new Map<string, string>();
@@ -31,8 +41,8 @@ let sfxMasterVolume = 1.0;
  * @returns A Promise that resolves to the Response.
  */
 async function makeApiCall(url: string, options: RequestInit): Promise<Response> {
-    // In this client-only version, it's a direct fetch.
-    return fetch(url, options);
+  // In this client-only version, it's a direct fetch.
+  return fetch(url, options);
 }
 
 const createAudio = (loop: boolean, volume: number) => {
@@ -48,7 +58,7 @@ const createAudio = (loop: boolean, volume: number) => {
   return el;
 };
 
-const musicAudio = createAudio(true, 0.3); 
+const musicAudio = createAudio(true, 0.3);
 const menuMusicAudio = createAudio(true, 0.3);
 const playerWalkAudio = createAudio(true, 0.6);
 const aiWalkAudio = createAudio(true, 0.5); // New looping audio for all AI agents
@@ -62,18 +72,18 @@ let sfxMuted = false;
 let musicMuted = false;
 
 export const setMusicVolume = (level: number) => {
-    const newVolume = Math.max(0, Math.min(1, level));
-    if (musicAudio) musicAudio.volume = newVolume;
-    if (menuMusicAudio) menuMusicAudio.volume = newVolume;
+  const newVolume = Math.max(0, Math.min(1, level));
+  if (musicAudio) musicAudio.volume = newVolume;
+  if (menuMusicAudio) menuMusicAudio.volume = newVolume;
 };
 
 export const setSfxVolume = (level: number) => {
-    sfxMasterVolume = Math.max(0, Math.min(1, level));
-    if (playerWalkAudio) playerWalkAudio.volume = sfxMasterVolume * 0.6;
-    if (aiWalkAudio) aiWalkAudio.volume = sfxMasterVolume * 0.5;
-    if (skynetTypingAudio) skynetTypingAudio.volume = sfxMasterVolume * 0.7;
-    // Ambience sound (outside.mp3) is explicitly and correctly tied to SFX volume.
-    if (ambienceAudio) ambienceAudio.volume = sfxMasterVolume * 1.0;
+  sfxMasterVolume = Math.max(0, Math.min(1, level));
+  if (playerWalkAudio) playerWalkAudio.volume = sfxMasterVolume * 0.6;
+  if (aiWalkAudio) aiWalkAudio.volume = sfxMasterVolume * 0.5;
+  if (skynetTypingAudio) skynetTypingAudio.volume = sfxMasterVolume * 0.7;
+  // Ambience sound (outside.mp3) is explicitly and correctly tied to SFX volume.
+  if (ambienceAudio) ambienceAudio.volume = sfxMasterVolume * 1.0;
 };
 
 export const setSfxMuted = (muted: boolean) => {
@@ -91,40 +101,40 @@ export const setMusicMuted = (muted: boolean) => {
 };
 
 const playAudioElement = (element: HTMLAudioElement | null, trackUrl: string, isMuted: boolean) => {
-    if (!isReady || !element) return;
-    
-    if (!trackUrl || isMuted) {
-        element.pause();
-        return;
-    }
+  if (!isReady || !element) return;
 
-    const play = (url: string) => {
-        if (element.src !== url) {
-            element.src = url;
-        }
-        if (element.paused) {
-            element.play().catch(e => {
-                if ((e as DOMException).name !== 'AbortError') console.warn('Audio play interrupted:', e);
-            });
-        }
-    }
+  if (!trackUrl || isMuted) {
+    element.pause();
+    return;
+  }
 
-    const cachedUrl = audioCache.get(trackUrl);
-    if (cachedUrl) {
-        play(cachedUrl);
-    } else {
-        // Load on demand. Don't block.
-        loadAndCacheAudio(trackUrl).then(() => {
-            const newCachedUrl = audioCache.get(trackUrl);
-            if (newCachedUrl) {
-                // The higher-level logic in App.tsx handles pausing audio elements if they are no longer desired,
-                // which prevents race conditions where an old sound might play after a context switch.
-                play(newCachedUrl);
-            }
-        }).catch(err => {
-            console.error(`On-demand audio loading failed for ${trackUrl}:`, err);
-        });
+  const play = (url: string) => {
+    if (element.src !== url) {
+      element.src = url;
     }
+    if (element.paused) {
+      element.play().catch(e => {
+        if ((e as DOMException).name !== 'AbortError') console.warn('Audio play interrupted:', e);
+      });
+    }
+  }
+
+  const cachedUrl = audioCache.get(trackUrl);
+  if (cachedUrl) {
+    play(cachedUrl);
+  } else {
+    // Load on demand. Don't block.
+    loadAndCacheAudio(trackUrl).then(() => {
+      const newCachedUrl = audioCache.get(trackUrl);
+      if (newCachedUrl) {
+        // The higher-level logic in App.tsx handles pausing audio elements if they are no longer desired,
+        // which prevents race conditions where an old sound might play after a context switch.
+        play(newCachedUrl);
+      }
+    }).catch(err => {
+      console.error(`On-demand audio loading failed for ${trackUrl}:`, err);
+    });
+  }
 }
 
 const loadAndCacheAudio = async (path: string) => {
@@ -142,16 +152,16 @@ const loadAndCacheAudio = async (path: string) => {
 };
 
 export const playMusic = (trackUrl: string) => {
-  if(menuMusicAudio) menuMusicAudio.pause();
+  if (menuMusicAudio) menuMusicAudio.pause();
   playAudioElement(musicAudio, trackUrl, musicMuted);
 };
 
 export const playAmbience = () => playAudioElement(ambienceAudio, OUTSIDE_AMBIENCE_PATH, sfxMuted);
-export const stopAmbience = () => { if(ambienceAudio) ambienceAudio.pause(); };
+export const stopAmbience = () => { if (ambienceAudio) ambienceAudio.pause(); };
 
 export const playMenuMusic = () => {
-  if(musicAudio) musicAudio.pause();
-  if(ambienceAudio) ambienceAudio.pause();
+  if (musicAudio) musicAudio.pause();
+  if (ambienceAudio) ambienceAudio.pause();
   playAudioElement(menuMusicAudio, MENU_MUSIC_PATH, musicMuted);
 };
 
@@ -159,25 +169,25 @@ export const stopMenuMusic = () => { if (menuMusicAudio) menuMusicAudio.pause();
 
 const playSound = (path: string, volume: number = 1.0) => {
   if (!isReady || sfxMuted) return;
-  
+
   const play = (url: string) => {
-      const sound = new Audio(url);
-      sound.volume = volume * sfxMasterVolume;
-      sound.play().catch(e => {
-         if ((e as DOMException).name !== 'AbortError') console.warn(`SFX play interrupted for ${path}:`, e);
-      });
+    const sound = new Audio(url);
+    sound.volume = volume * sfxMasterVolume;
+    sound.play().catch(e => {
+      if ((e as DOMException).name !== 'AbortError') console.warn(`SFX play interrupted for ${path}:`, e);
+    });
   }
 
   const cachedUrl = audioCache.get(path);
   if (cachedUrl) {
-      play(cachedUrl);
+    play(cachedUrl);
   } else {
-      loadAndCacheAudio(path).then(() => {
-          const newCachedUrl = audioCache.get(path);
-          if (newCachedUrl) play(newCachedUrl);
-      }).catch(err => {
-          console.error(`On-demand SFX loading failed for ${path}:`, err);
-      });
+    loadAndCacheAudio(path).then(() => {
+      const newCachedUrl = audioCache.get(path);
+      if (newCachedUrl) play(newCachedUrl);
+    }).catch(err => {
+      console.error(`On-demand SFX loading failed for ${path}:`, err);
+    });
   }
 };
 
@@ -185,10 +195,10 @@ export const playMessageSound = () => playSound(MESSAGE_SOUND_PATH, 1.0);
 export const playVictorySound = () => playSound(VICTORY_SOUND_PATH, 0.8);
 
 export const startPlayerWalking = (isRunning: boolean = false) => {
-    if (playerWalkAudio) {
-        playerWalkAudio.playbackRate = isRunning ? 1.5 : 1.0;
-    }
-    playAudioElement(playerWalkAudio, WALKING_SOUND_PATH, sfxMuted);
+  if (playerWalkAudio) {
+    playerWalkAudio.playbackRate = isRunning ? 1.5 : 1.0;
+  }
+  playAudioElement(playerWalkAudio, WALKING_SOUND_PATH, sfxMuted);
 };
 
 export const stopPlayerWalking = () => {
@@ -200,7 +210,7 @@ export const stopPlayerWalking = () => {
 
 // --- New AI Walking Sounds ---
 export const startAiWalking = () => playAudioElement(aiWalkAudio, WALKING_SOUND_PATH, sfxMuted);
-export const stopAiWalking = () => { if(aiWalkAudio) aiWalkAudio.pause(); };
+export const stopAiWalking = () => { if (aiWalkAudio) aiWalkAudio.pause(); };
 // --- End New AI Walking Sounds ---
 
 // --- Skynet Typing Sound ---
@@ -220,19 +230,19 @@ export const warmupAudio = (): Promise<void> => {
       }
     }
     const startAudio = () => {
-        isReady = true;
-        console.log("AudioContext resumed. Pre-caching key sounds...");
-        // Pre-cache sounds here. Don't await them, let them load in the background.
-        loadAndCacheAudio(MESSAGE_SOUND_PATH);
-        loadAndCacheAudio(WALKING_SOUND_PATH);
-        loadAndCacheAudio(SKYNET_TYPING_SOUND_PATH);
-        loadAndCacheAudio(VICTORY_SOUND_PATH);
-        resolve();
+      isReady = true;
+      console.log("AudioContext resumed. Pre-caching key sounds...");
+      // Pre-cache sounds here. Don't await them, let them load in the background.
+      loadAndCacheAudio(MESSAGE_SOUND_PATH);
+      loadAndCacheAudio(WALKING_SOUND_PATH);
+      loadAndCacheAudio(SKYNET_TYPING_SOUND_PATH);
+      loadAndCacheAudio(VICTORY_SOUND_PATH);
+      resolve();
     };
     if (audioContext.state === 'suspended') {
       audioContext.resume().then(startAudio).catch(reject);
     } else {
-        startAudio();
+      startAudio();
     }
   });
 };
