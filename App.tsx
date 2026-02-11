@@ -7,12 +7,13 @@ import { useAppStore } from './hooks/useAppContext.ts';
 import { useAutoSave } from './hooks/useAutoSave.ts';
 import { shallow } from 'zustand/shallow';
 import * as speechService from './services/speechService.ts';
+import { warmupAudio } from './services/audioService.ts';
 
 function App() {
   const { equippedArtifactId } = useAppStore(s => ({
     equippedArtifactId: s.game.equippedArtifactId,
   }), shallow);
-  
+
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const { setAudioState, hydrateState } = useAppStore.getState();
@@ -25,7 +26,7 @@ function App() {
   useEffect(() => {
     hydrateState();
   }, [hydrateState]);
-  
+
   // Effect to handle virtual keyboard on mobile
   useEffect(() => {
     const handleResize = () => {
@@ -56,10 +57,11 @@ function App() {
   // Set the real focus function into the global store once the ref is available.
   useEffect(() => {
     useAppStore.setState({ focusViewport });
-    
+
     // Initialize audio on first user interaction
     const initAudio = () => {
       setAudioState({ ready: true });
+      warmupAudio().catch(console.error);
       window.removeEventListener('click', initAudio);
       window.removeEventListener('keydown', initAudio);
     };
@@ -68,7 +70,7 @@ function App() {
 
     // Initialize speech synthesis service to load voices
     speechService.init();
-    
+
     return () => {
       window.removeEventListener('click', initAudio);
       window.removeEventListener('keydown', initAudio);

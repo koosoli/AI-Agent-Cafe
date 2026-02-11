@@ -6,110 +6,110 @@ import type { DojoBelt, WorldImageArtifact } from '../types.ts';
 // --- Particle System for Fountain ---
 
 interface ParticleState {
-  id: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  lifetime: number;
-  maxLifetime: number;
-  size: number;
-  opacity: number;
+    id: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    lifetime: number;
+    maxLifetime: number;
+    size: number;
+    opacity: number;
 }
 
 const useFountainParticleSystem = () => {
-  const [particles, setParticles] = useState<ParticleState[]>([]);
-  const animationFrameId = useRef<number | null>(null);
-  const lastParticleId = useRef(0);
+    const [particles, setParticles] = useState<ParticleState[]>([]);
+    const animationFrameId = useRef<number | null>(null);
+    const lastParticleId = useRef(0);
 
-  const options = {
-    particleCount: 50,
-    gravity: 0.08,
-    origin: { x: 1498, y: 1365 }, // Top of fountain spout: left(1450) + width(100)/2 - adjustment, top(1325) + spoutY(40)
-    destinationY: 1395, // Water level in basin
-    initialVelocity: () => ({ vx: (Math.random() - 0.5) * 0.8, vy: -1.5 - Math.random() * 0.8 }),
-    lifetime: () => 40 + Math.random() * 20,
-    size: () => 4 + Math.random() * 2,
-  };
-
-  useEffect(() => {
-    const createParticle = () => {
-      const { vx, vy } = options.initialVelocity();
-      const maxLifetime = options.lifetime();
-      return {
-        id: lastParticleId.current++,
-        x: options.origin.x + (Math.random() - 0.5) * 5,
-        y: options.origin.y,
-        vx,
-        vy,
-        lifetime: maxLifetime,
-        maxLifetime,
-        size: options.size(),
-        opacity: 0,
-      };
+    const options = {
+        particleCount: 50,
+        gravity: 0.08,
+        origin: { x: 1498, y: 1365 }, // Top of fountain spout: left(1450) + width(100)/2 - adjustment, top(1325) + spoutY(40)
+        destinationY: 1395, // Water level in basin
+        initialVelocity: () => ({ vx: (Math.random() - 0.5) * 0.8, vy: -1.5 - Math.random() * 0.8 }),
+        lifetime: () => 40 + Math.random() * 20,
+        size: () => 4 + Math.random() * 2,
     };
 
-    const update = () => {
-      setParticles(prevParticles => {
-        let newParticles = prevParticles
-          .map(p => {
-            if (p.y > options.destinationY) {
-              return { ...p, lifetime: 0 };
-            }
-            const newLifetime = p.lifetime - 1;
-            const newVy = p.vy + options.gravity;
+    useEffect(() => {
+        const createParticle = () => {
+            const { vx, vy } = options.initialVelocity();
+            const maxLifetime = options.lifetime();
             return {
-              ...p,
-              x: p.x + p.vx,
-              y: p.y + newVy,
-              vy: newVy,
-              lifetime: newLifetime,
-              opacity: Math.max(0, Math.min(1, (1 - newLifetime / p.maxLifetime) * 2, (newLifetime / p.maxLifetime) * 2)),
+                id: lastParticleId.current++,
+                x: options.origin.x + (Math.random() - 0.5) * 5,
+                y: options.origin.y,
+                vx,
+                vy,
+                lifetime: maxLifetime,
+                maxLifetime,
+                size: options.size(),
+                opacity: 0,
             };
-          })
-          .filter(p => p.lifetime > 0);
-        
-        const needed = options.particleCount - newParticles.length;
-        for (let i = 0; i < needed; i++) {
-          newParticles.push(createParticle());
-        }
-        
-        return newParticles;
-      });
+        };
 
-      animationFrameId.current = requestAnimationFrame(update);
-    };
-    animationFrameId.current = requestAnimationFrame(update);
+        const update = () => {
+            setParticles(prevParticles => {
+                let newParticles = prevParticles
+                    .map(p => {
+                        if (p.y > options.destinationY) {
+                            return { ...p, lifetime: 0 };
+                        }
+                        const newLifetime = p.lifetime - 1;
+                        const newVy = p.vy + options.gravity;
+                        return {
+                            ...p,
+                            x: p.x + p.vx,
+                            y: p.y + newVy,
+                            vy: newVy,
+                            lifetime: newLifetime,
+                            opacity: Math.max(0, Math.min(1, (1 - newLifetime / p.maxLifetime) * 2, (newLifetime / p.maxLifetime) * 2)),
+                        };
+                    })
+                    .filter(p => p.lifetime > 0);
 
-    return () => {
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-    };
-  }, []); // Empty dependency array ensures this runs only once
+                const needed = options.particleCount - newParticles.length;
+                for (let i = 0; i < needed; i++) {
+                    newParticles.push(createParticle());
+                }
 
-  return particles;
+                return newParticles;
+            });
+
+            animationFrameId.current = requestAnimationFrame(update);
+        };
+        animationFrameId.current = requestAnimationFrame(update);
+
+        return () => {
+            if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        };
+    }, []); // Empty dependency array ensures this runs only once
+
+    return particles;
 };
 
 const FountainParticles = () => {
-  const particles = useFountainParticleSystem();
-  return (
-    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1001 }}>
-      {particles.map(p => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            left: p.x,
-            top: p.y,
-            width: p.size,
-            height: p.size,
-            backgroundColor: 'rgba(200, 230, 255, 0.8)',
-            borderRadius: '50%',
-            opacity: p.opacity,
-          }}
-        />
-      ))}
-    </div>
-  );
+    const particles = useFountainParticleSystem();
+    return (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1001 }}>
+            {particles.map(p => (
+                <div
+                    key={p.id}
+                    style={{
+                        position: 'absolute',
+                        left: p.x,
+                        top: p.y,
+                        width: p.size,
+                        height: p.size,
+                        backgroundColor: 'rgba(200, 230, 255, 0.8)',
+                        borderRadius: '50%',
+                        opacity: p.opacity,
+                    }}
+                />
+            ))}
+        </div>
+    );
 };
 
 
@@ -134,7 +134,7 @@ const PixelFlower = ({ style, color1, color2, sparkling = false, sparkleDelay = 
 );
 
 const PixelBush = ({ style, swaying = false }: { style: React.CSSProperties, swaying?: boolean }) => (
-    <div 
+    <div
         style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) + ((style.height as number) || 0)) / 10) }}
         className={swaying ? 'sway-animation' : ''}
     >
@@ -156,7 +156,7 @@ const PixelTree = ({ style, leafColor = 'green', swaying = false }: { style: Rea
     };
     const c = colors[leafColor];
     return (
-        <div 
+        <div
             style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) + ((style.height as number) || 0)) / 10) }}
             className={swaying ? 'sway-animation' : ''}
         >
@@ -174,12 +174,12 @@ const PixelTree = ({ style, leafColor = 'green', swaying = false }: { style: Rea
 const Fountain = ({ style }: { style: React.CSSProperties }) => (
     <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-            <path fill="#a0a0a0" d="M20,70h60v10h-60z M30,60h40v10h-40z M10,80h80v10h-80z"/>
-            <path fill="#808080" d="M20,70h60v2h-60z M30,60h40v2h-40z M10,80h80v2h-80z"/>
-            <path fill="#c0c0c0" d="M22,72h56v6h-56z M32,62h36v6h-36z M12,82h76v6h-76z"/>
-            <path fill="#50a0d0" d="M25,70h50v-10h-50z M35,60h30v-10h-30z"/>
-            <path fill="#80c0f0" d="M27,68h46v-8h-46z M37,58h26v-8h-26z"/>
-            <path fill="#fff" d="M45,50h10v-10h-10z M48,40h4v-10h-4z"/>
+            <path fill="#a0a0a0" d="M20,70h60v10h-60z M30,60h40v10h-40z M10,80h80v10h-80z" />
+            <path fill="#808080" d="M20,70h60v2h-60z M30,60h40v2h-40z M10,80h80v2h-80z" />
+            <path fill="#c0c0c0" d="M22,72h56v6h-56z M32,62h36v6h-36z M12,82h76v6h-76z" />
+            <path fill="#50a0d0" d="M25,70h50v-10h-50z M35,60h30v-10h-30z" />
+            <path fill="#80c0f0" d="M27,68h46v-8h-46z M37,58h26v-8h-26z" />
+            <path fill="#fff" d="M45,50h10v-10h-10z M48,40h4v-10h-4z" />
         </svg>
     </div>
 );
@@ -187,8 +187,8 @@ const Fountain = ({ style }: { style: React.CSSProperties }) => (
 const Bench = ({ style }: { style: React.CSSProperties }) => (
     <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 24" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-            <path fill="#6b4a2e" d="M0,8h80v8h-80z"/>
-            <path fill="#593d2b" d="M0,16h80v4h-80z M10,20h12v4h-12z M58,20h12v4h-12z"/>
+            <path fill="#6b4a2e" d="M0,8h80v8h-80z" />
+            <path fill="#593d2b" d="M0,16h80v4h-80z M10,20h12v4h-12z M58,20h12v4h-12z" />
         </svg>
     </div>
 );
@@ -206,12 +206,12 @@ const ReceptionDesk = ({ style }: { style: React.CSSProperties }) => (
 );
 
 const OfficeDesk = ({ style }: { style: React.CSSProperties }) => (
-  <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-      <path fill="#8b5e34" d="M0,0h160v10h-160z"/>
-      <path fill="#6b4a2e" d="M0,0h160v2h-160z M5,10h10v40h-10z M145,10h10v40h-10z"/>
-    </svg>
-  </div>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path fill="#8b5e34" d="M0,0h160v10h-160z" />
+            <path fill="#6b4a2e" d="M0,0h160v2h-160z M5,10h10v40h-10z M145,10h10v40h-10z" />
+        </svg>
+    </div>
 );
 
 const Computer = ({ style }: { style: React.CSSProperties }) => (
@@ -248,16 +248,16 @@ const InteractiveTerminal = ({ style, glowing, onClick, label }: { style: React.
             <path fill="#0d47a1" d="M12,12h26v26h-26z" />
             <path fill="#1976d2" d="M15,15h3v2h-3z M20,15h12v2h-12z M15,20h10v2h-10z" />
             {/* Keyboard area */}
-            <path fill="#555" d="M5,45h40v10h-40z"/>
+            <path fill="#555" d="M5,45h40v10h-40z" />
             {/* Stand */}
-            <path fill="#444" d="M20,60h10v10h-10z"/>
+            <path fill="#444" d="M20,60h10v10h-10z" />
         </svg>
     </div>
 );
 
 
 const Whiteboard = ({ style }: { style: React.CSSProperties }) => (
-    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) -1 }}>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) - 1 }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
             <path fill="#333" d="M0,0h100v50h-100z" />
             <path fill="#fff" d="M5,5h90v40h-90z" />
@@ -267,53 +267,53 @@ const Whiteboard = ({ style }: { style: React.CSSProperties }) => (
 );
 
 const RoundCafeTable = ({ style }: { style: React.CSSProperties }) => (
-  <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-      <circle cx="30" cy="30" r="28" fill="#6e5a49"/>
-      <circle cx="30" cy="30" r="25" fill="#8b5e34"/>
-      <rect x="27" y="27" width="6" height="6" fill="#593d2b"/>
-    </svg>
-  </div>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <circle cx="30" cy="30" r="28" fill="#6e5a49" />
+            <circle cx="30" cy="30" r="25" fill="#8b5e34" />
+            <rect x="27" y="27" width="6" height="6" fill="#593d2b" />
+        </svg>
+    </div>
 );
 
 const Chair = ({ style, facing = 'up' }: { style: React.CSSProperties, facing?: 'up' | 'down' }) => (
-  <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10)}}>
-     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-      {facing === 'up' && <path d="M0 5 H40 V15 H0 Z" fill="#6b4a2e"/>}
-      <path d={facing === 'up' ? "M5 15 H35 V35 H5 Z" : "M5 5 H35 V25 H5 Z"} fill="#8b5e34" />
-      <path d={facing === 'up' ? "M8 18 H32 V32 H8 Z" : "M8 8 H32 V22 H8 Z" } fill="#a0522d" />
-      {facing === 'down' && <path d="M0 25 H40 V35 H0 Z" fill="#6b4a2e"/>}
-     </svg>
-  </div>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            {facing === 'up' && <path d="M0 5 H40 V15 H0 Z" fill="#6b4a2e" />}
+            <path d={facing === 'up' ? "M5 15 H35 V35 H5 Z" : "M5 5 H35 V25 H5 Z"} fill="#8b5e34" />
+            <path d={facing === 'up' ? "M8 18 H32 V32 H8 Z" : "M8 8 H32 V22 H8 Z"} fill="#a0522d" />
+            {facing === 'down' && <path d="M0 25 H40 V35 H0 Z" fill="#6b4a2e" />}
+        </svg>
+    </div>
 );
 
 
 const DnDTable = ({ style }: { style: React.CSSProperties }) => (
-  <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-      <path fill="#593d2b" d="M10,0h280v200h-280z"/>
-      <path fill="#8b5e34" d="M20,10h260v180h-260z"/>
-      {/* Map */}
-      <path fill="#d2b48c" d="M50,40h200v120h-200z" />
-      <path fill="#228b22" d="M70,60h50v40h-50z" />
-      <path fill="#4682b4" d="M150,90h80v50h-80z" />
-    </svg>
-  </div>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path fill="#593d2b" d="M10,0h280v200h-280z" />
+            <path fill="#8b5e34" d="M20,10h260v180h-260z" />
+            {/* Map */}
+            <path fill="#d2b48c" d="M50,40h200v120h-200z" />
+            <path fill="#228b22" d="M70,60h50v40h-50z" />
+            <path fill="#4682b4" d="M150,90h80v50h-80z" />
+        </svg>
+    </div>
 );
 
 const Bookshelf = ({ style }: { style: React.CSSProperties }) => (
-  <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) -1 }}>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 150" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-      <path fill="#8b5e34" d="M0,0h30v150h-30z"/>
-      <path fill="#593d2b" d="M5,10h20v130h-20z"/>
-      {/* Books */}
-      <path fill="#b22222" d="M7,15h5v15h-5z"/> <path fill="#228b22" d="M13,15h6v15h-6z"/>
-      <path fill="#4682b4" d="M7,35h8v15h-8z"/> <path fill="#daa520" d="M16,35h4v15h-4z"/>
-      <path fill="#4b0082" d="M7,55h4v15h-4z"/> <path fill="#2f4f4f" d="M12,55h8v15h-8z"/>
-       <path fill="#b22222" d="M7,75h5v15h-5z"/> <path fill="#228b22" d="M13,75h6v15h-6z"/>
-      <path fill="#4682b4" d="M7,95h8v15h-8z"/> <path fill="#daa520" d="M16,95h4v15h-4z"/>
-    </svg>
-  </div>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) - 1 }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 150" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path fill="#8b5e34" d="M0,0h30v150h-30z" />
+            <path fill="#593d2b" d="M5,10h20v130h-20z" />
+            {/* Books */}
+            <path fill="#b22222" d="M7,15h5v15h-5z" /> <path fill="#228b22" d="M13,15h6v15h-6z" />
+            <path fill="#4682b4" d="M7,35h8v15h-8z" /> <path fill="#daa520" d="M16,35h4v15h-4z" />
+            <path fill="#4b0082" d="M7,55h4v15h-4z" /> <path fill="#2f4f4f" d="M12,55h8v15h-8z" />
+            <path fill="#b22222" d="M7,75h5v15h-5z" /> <path fill="#228b22" d="M13,75h6v15h-6z" />
+            <path fill="#4682b4" d="M7,95h8v15h-8z" /> <path fill="#daa520" d="M16,95h4v15h-4z" />
+        </svg>
+    </div>
 );
 
 const CoffeeMachine = ({ style }: { style: React.CSSProperties }) => (
@@ -331,10 +331,10 @@ const CoffeeMachine = ({ style }: { style: React.CSSProperties }) => (
 
 
 const CounterSegment = ({ style }: { style: React.CSSProperties }) => (
-    <div style={{ 
-        position: 'absolute', 
-        ...style, 
-        zIndex: Math.floor(((style.top as number) || 0) / 10), 
+    <div style={{
+        position: 'absolute',
+        ...style,
+        zIndex: Math.floor(((style.top as number) || 0) / 10),
         backgroundColor: '#8b5e34',
         boxSizing: 'border-box',
         borderTop: '15px solid #a0522d',
@@ -356,7 +356,7 @@ const StudentDesk = ({ style }: { style: React.CSSProperties }) => (
 );
 
 const Blackboard = ({ style }: { style: React.CSSProperties }) => (
-    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) -1 }}>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) - 1 }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
             <path fill="#593d2b" d="M0,0h200v100h-200z" />
             <path fill="#364531" d="M10,10h180v80h-180z" />
@@ -365,18 +365,18 @@ const Blackboard = ({ style }: { style: React.CSSProperties }) => (
 );
 
 const ServerRack = ({ style }: { style: React.CSSProperties }) => (
-    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) -1 }}>
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) - 1 }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 150" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-            <path fill="#333" d="M0,0h50v150h-50z"/>
-            <path fill="#222" d="M5,5h40v140h-40z"/>
+            <path fill="#333" d="M0,0h50v150h-50z" />
+            <path fill="#222" d="M5,5h40v140h-40z" />
             {[...Array(13)].map((_, i) => (
                 <path key={i} fill="#444" d={`M10,${10 + i * 10}h30v5h-30z`} />
             ))}
-             <path fill="#f00" d="M12,15h2v2h-2z" />
-             <path fill="#0f0" d="M12,25h2v2h-2z" />
-             <path fill="#0f0" d="M12,55h2v2h-2z" />
-             <path fill="#f00" d="M12,85h2v2h-2z" />
-             <path fill="#0f0" d="M12,125h2v2h-2z" />
+            <path fill="#f00" d="M12,15h2v2h-2z" />
+            <path fill="#0f0" d="M12,25h2v2h-2z" />
+            <path fill="#0f0" d="M12,55h2v2h-2z" />
+            <path fill="#f00" d="M12,85h2v2h-2z" />
+            <path fill="#0f0" d="M12,125h2v2h-2z" />
         </svg>
     </div>
 );
@@ -434,23 +434,41 @@ const InteractiveGameBoard = ({ style, glowing, onClick, label }: { style: React
 );
 
 
+const Streetlamp = ({ style }: { style: React.CSSProperties }) => (
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) + 50 }}>
+        {/* Glow effect on the ground */}
+        <div className="streetlamp-glow" style={{
+            position: 'absolute', top: 40, left: -25, width: 80, height: 40,
+            background: 'radial-gradient(ellipse at center, rgba(253, 224, 71, 0.4) 0%, transparent 70%)',
+            pointerEvents: 'none', zIndex: -1
+        }}></div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 80" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path fill="#2c2c2c" d="M10,70 h10 v10 h-10 z" /> {/* Base */}
+            <path fill="#3f3f3f" d="M12,20 h6 v50 h-6 z" /> {/* Pole */}
+            <path fill="#1a1a1a" d="M5,10 h20 v2 h-20 z" /> {/* Lamp Top Detail */}
+            <path fill="#1a1a1a" d="M8,12 h14 v8 h-14 z" /> {/* Lamp Housing */}
+            <path fill="#fef08a" d="M10,14 h10 v6 h-10 z" /> {/* Light Bulb Area */}
+        </svg>
+    </div>
+);
+
 const StoneLantern = ({ style }: { style: React.CSSProperties }) => (
     <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 50" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-            <path fill="#8a8a8a" d="M5,45h20v5h-20z"/>
-            <path fill="#9d9d9d" d="M12,25h6v20h-6z"/>
-            <path fill="#6b6b6b" d="M0,15h30v10h-30z"/>
-            <path fill="#505050" d="M0,5h30v10h-30z M5,0h20v5h-20z"/>
-            <path fill="#fef08a" d="M8,18h14v4h-14z"/>
+            <path fill="#8a8a8a" d="M5,45h20v5h-20z" />
+            <path fill="#9d9d9d" d="M12,25h6v20h-6z" />
+            <path fill="#6b6b6b" d="M0,15h30v10h-30z" />
+            <path fill="#505050" d="M0,5h30v10h-30z M5,0h20v5h-20z" />
+            <path fill="#fef08a" d="M8,18h14v4h-14z" />
         </svg>
     </div>
 );
 
 const LilyPad = ({ style }: { style: React.CSSProperties }) => (
-    <div style={{...style, position: 'absolute'}}>
+    <div style={{ ...style, position: 'absolute' }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
-            <path fill="#228b22" d="M10,2c-4.4,0-8,3.6-8,8s3.6,8,8,8s8-3.6,8-8S14.4,2,10,2z"/>
-            <path fill="#3cb371" d="M10,4c-3.3,0-6,2.7-6,6s2.7,6,6,6s6-2.7,6-6S13.3,4,10,4z"/>
+            <path fill="#228b22" d="M10,2c-4.4,0-8,3.6-8,8s3.6,8,8,8s8-3.6,8-8S14.4,2,10,2z" />
+            <path fill="#3cb371" d="M10,4c-3.3,0-6,2.7-6,6s2.7,6,6,6s6-2.7,6-6S13.3,4,10,4z" />
             <path fill="#4682b4" d="M10,10 L18,15 L15,18 z" />
         </svg>
     </div>
@@ -465,9 +483,9 @@ const Pond = ({ style }: { style: React.CSSProperties }) => (
         border: '5px solid #6b4a2e',
         boxShadow: 'inset 0 0 15px rgba(0,0,0,0.3)',
     }}>
-        <LilyPad style={{ top: '30%', left: '20%', width: 30, height: 30, transform: 'rotate(15deg)' }}/>
-        <LilyPad style={{ top: '60%', left: '70%', width: 40, height: 40, transform: 'rotate(-25deg)' }}/>
-        <LilyPad style={{ top: '40%', left: '50%', width: 25, height: 25, transform: 'rotate(45deg)' }}/>
+        <LilyPad style={{ top: '30%', left: '20%', width: 30, height: 30, transform: 'rotate(15deg)' }} />
+        <LilyPad style={{ top: '60%', left: '70%', width: 40, height: 40, transform: 'rotate(-25deg)' }} />
+        <LilyPad style={{ top: '40%', left: '50%', width: 25, height: 25, transform: 'rotate(45deg)' }} />
     </div>
 );
 
@@ -520,6 +538,34 @@ const DoorPath = ({ style }: { style: React.CSSProperties }) => (
     <div className="absolute cobblestone-path" style={{ ...style, zIndex: 0 }}></div>
 );
 
+const Globe = ({ style }: { style: React.CSSProperties }) => (
+    <div style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) + 1 }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path fill="#8b4513" d="M10,30h10v5h-10z M5,35h20v5h-20z" /> {/* Base */}
+            <circle cx="15" cy="18" r="14" fill="#3b82f6" /> {/* Ocean */}
+            <path fill="#22c55e" d="M8,15 l4,-4 l6,2 l-2,8 z M18,22 l5,-3 l2,5 l-6,2 z" /> {/* Continents */}
+            <path fill="rgba(255,255,255,0.3)" d="M5,10 a14,14 0 0 1 10,-8" /> {/* Highlight */}
+        </svg>
+    </div>
+);
+
+const PaintSplatter = ({ style, color }: { style: React.CSSProperties; color: string }) => (
+    <div style={{ position: 'absolute', ...style, zIndex: 0 }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path fill={color} d="M10,10 m-5,-2 l2,-2 l5,0 l3,3 l-2,4 l-6,1 z" opacity="0.6" />
+        </svg>
+    </div>
+);
+
+const ChalkDiagram = ({ style }: { style: React.CSSProperties }) => (
+    <div style={{ position: 'absolute', ...style, zIndex: 1 }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" style={{ imageRendering: 'pixelated', width: '100%', height: '100%' }}>
+            <path stroke="rgba(255,255,255,0.7)" strokeWidth="2" fill="none" d="M10,10 L40,40 M10,40 L40,10" />
+            <circle cx="70" cy="25" r="15" stroke="rgba(255,255,255,0.7)" strokeWidth="2" fill="none" />
+        </svg>
+    </div>
+);
+
 interface SceneryProps {
     playerRoomId: string | undefined;
     onArtEaselClick: () => void;
@@ -535,19 +581,32 @@ interface SceneryProps {
 
 
 const Scenery = ({ playerRoomId, onArtEaselClick, onGroundingComputerClick, onVibeComputerClick, onScreenplayTerminalClick, onModelComparisonTerminalClick, onGameBoardClick, displayedImageUrl, worldArtifacts, onWorldArtifactClick }: SceneryProps) => {
-    const grassPattern = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZHRoPSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZHRoPSIyMCIgZmlsbD0iIzVhOGQ0ZCI+PC9yZWN0Pgo8Y2lyY2xlIGN4PSIzIiBjeT0iMyIgcj0iMSIgZmlsbD0iIzY0OWM1NiI+PC9jaXJjbGU+CjxjaXJjbGUgY3g9IjE1IiBjeT0iNiIgcj0iMSIgZmlsbD0iIzY0OWM1NiI+PC9jaXJjbGU+CjxjaXJjbGUgY3g9IjUiIGN5PSIxNyIgcj0iMSIgZmlsbD0iIzQ5NzQzZCI+PC9jaXJjbGU+CjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0OTc0M2QiPjwvY2lyY2xlPgo8L3N2Zz4=`;
+    // Richer grass pattern using CSS gradients instead of a single SVG tile
+    const GrassFloor = () => (
+        <div className="absolute w-full h-full" style={{
+            backgroundColor: '#4a7a40',
+            backgroundImage: `
+                radial-gradient(circle at 15% 15%, #5a8d4d 2px, transparent 2.5px),
+                radial-gradient(circle at 75% 75%, #3e6b35 2px, transparent 2.5px),
+                linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.05) 75%),
+                linear-gradient(-45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.05) 75%)
+            `,
+            backgroundSize: `40px 40px, 40px 40px, 80px 80px, 80px 80px`,
+            imageRendering: 'pixelated'
+        }}></div>
+    );
 
     const getBuildingStyle = (zoneKey: keyof typeof ZONES) => {
-      const zone = ZONES[zoneKey];
-      return {
-        left: zone.x1,
-        top: zone.y1,
-        width: zone.x2 - zone.x1,
-        height: zone.y2 - zone.y1,
-        zIndex: Math.floor(zone.y1 / 10),
-      };
+        const zone = ZONES[zoneKey];
+        return {
+            left: zone.x1,
+            top: zone.y1,
+            width: zone.x2 - zone.x1,
+            height: zone.y2 - zone.y1,
+            zIndex: Math.floor(zone.y1 / 10),
+        };
     };
-    
+
     const BuildingShadow = ({ zoneKey }: { zoneKey: keyof typeof ZONES }) => {
         const zone = ZONES[zoneKey];
         const style: React.CSSProperties = {
@@ -561,15 +620,30 @@ const Scenery = ({ playerRoomId, onArtEaselClick, onGroundingComputerClick, onVi
         };
         return <div style={style}></div>;
     };
-    
+
+    const SoftBuildingShadow = ({ zoneKey }: { zoneKey: keyof typeof ZONES }) => {
+        const zone = ZONES[zoneKey];
+        const style: React.CSSProperties = {
+            position: 'absolute',
+            left: zone.x1 + 4,
+            top: zone.y1 + 10,
+            width: zone.x2 - zone.x1,
+            height: zone.y2 - zone.y1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            filter: 'blur(6px)',
+            zIndex: Math.floor(zone.y1 / 10) - 2,
+        };
+        return <div style={style}></div>;
+    };
+
     const Door = ({ style }: { style: React.CSSProperties }) => (
         <div className="door-animation" style={{ position: 'absolute', ...style, zIndex: Math.floor(((style.top as number) || 0) / 10) + 1, backgroundColor: '#3a2d21', padding: 4, borderRadius: '2px' }}>
-          <div style={{width: '100%', height: '100%', backgroundColor: '#6b4a2e', boxShadow: 'inset 0 0 0 2px #593d2b'}}>
-             <div style={{ position: 'absolute', top: '50%', left: '75%', transform: 'translateY(-50%)', width: 6, height: 6, backgroundColor: '#fbbF24', borderRadius: '50%', border: '1px solid black' }}></div>
-          </div>
+            <div style={{ width: '100%', height: '100%', backgroundColor: '#6b4a2e', boxShadow: 'inset 0 0 0 2px #593d2b' }}>
+                <div style={{ position: 'absolute', top: '50%', left: '75%', transform: 'translateY(-50%)', width: 6, height: 6, backgroundColor: '#fbbF24', borderRadius: '50%', border: '1px solid black' }}></div>
+            </div>
         </div>
     );
-    
+
     const ManualBuildingTitle = ({ text, x, y }: { text: string; x: number; y: number; }) => {
         const style: React.CSSProperties = {
             position: 'absolute',
@@ -583,7 +657,7 @@ const Scenery = ({ playerRoomId, onArtEaselClick, onGroundingComputerClick, onVi
         };
         return (
             <div style={style}>
-            <h3 style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 12px', fontSize: '1.75rem', display: 'inline-block', border: '2px solid #111', textShadow: '2px 2px #000' }}>{text}</h3>
+                <h3 style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 12px', fontSize: '1.75rem', display: 'inline-block', border: '2px solid #111', textShadow: '2px 2px #000' }}>{text}</h3>
             </div>
         );
     };
@@ -595,50 +669,50 @@ const Scenery = ({ playerRoomId, onArtEaselClick, onGroundingComputerClick, onVi
         { color1: '#ec4899', color2: '#fbcfe8' }, // Pink/Light Pink
         { color1: '#8b5cf6', color2: '#ddd6fe' }  // Indigo/Light Indigo
     ];
-    
+
     const generateFlowers = () => {
-      const flowers = [];
-      for(let i=0; i < 50; i++) { // Optimized from 200 to 50
-        const left = Math.random() * 4900;
-        const top = Math.random() * 2900;
-        if(isPositionValid(left, top)) {
-          const inAnyZone = Object.values(ZONES).some(zone => 
-            left > zone.x1 && left < zone.x2 && top > zone.y1 && top < zone.y2
-          );
-          if(!inAnyZone) {
-            flowers.push({
-              type: 'flower' as const,
-              key: `flower-${i}`,
-              style: { left, top, width: 20, height: 20 },
-              ...flowerColors[Math.floor(Math.random() * flowerColors.length)]
-            });
-          }
+        const flowers = [];
+        for (let i = 0; i < 50; i++) { // Optimized from 200 to 50
+            const left = Math.random() * 4900;
+            const top = Math.random() * 2900;
+            if (isPositionValid(left, top)) {
+                const inAnyZone = Object.values(ZONES).some(zone =>
+                    left > zone.x1 && left < zone.x2 && top > zone.y1 && top < zone.y2
+                );
+                if (!inAnyZone) {
+                    flowers.push({
+                        type: 'flower' as const,
+                        key: `flower-${i}`,
+                        style: { left, top, width: 20, height: 20 },
+                        ...flowerColors[Math.floor(Math.random() * flowerColors.length)]
+                    });
+                }
+            }
         }
-      }
-      return flowers;
+        return flowers;
     }
     const initialSceneryItems = [
-      ...[...Array(20)].map((_, i) => ({ type: 'tree' as const, key: `t1-${i}`, style: { left: 100 + i * 220, top: 150 + (i%2)*20, width: 60 + (i%3)*20, height: 80 + (i%3)*30 }, leafColor: ['green', 'orange', 'red', 'yellow'][i%4] as 'green' | 'orange' | 'red' | 'yellow' })),
-      ...[...Array(20)].map((_, i) => ({ type: 'tree' as const, key: `t2-${i}`, style: { left: 150 + i * 220, top: 2600 + (i%3)*15, width: 70 + (i%2)*20, height: 90 + (i%2)*30 }, leafColor: ['green', 'orange'][i%2] as 'green' | 'orange' })),
-      ...[...Array(5)].map((_, i) => ({ type: 'tree' as const, key: `t3-${i}`, style: { left: 950 + i * 200, top: 1500 + i*40, width: 70, height: 90 }, leafColor: 'green' as 'green' })),
-      { type: 'bush' as const, key: 'b1', style: { left: 1000, top: 700, width: 80, height: 60 } },
-      { type: 'bush' as const, key: 'b2', style: { left: 1900, top: 750, width: 90, height: 70 } },
-      { type: 'bush' as const, key: 'b3', style: { left: 100, top: 1750, width: 90, height: 70 } },
-      { type: 'bush' as const, key: 'b4', style: { left: 2800, top: 1700, width: 120, height: 90 } },
-      { type: 'bush' as const, key: 'b5', style: { left: 1000, top: 2000, width: 80, height: 60 } },
-      { type: 'bush' as const, key: 'b6', style: { left: 1900, top: 2100, width: 70, height: 55 } },
-      { type: 'bush' as const, key: 'b7', style: { left: 1600, top: 800, width: 60, height: 45 } },
-      { type: 'bush' as const, key: 'b8', style: { left: 400, top: 900, width: 100, height: 75 } },
-      { type: 'bush' as const, key: 'b9', style: { left: 2200, top: 900, width: 110, height: 80 } },
-      { type: 'bush' as const, key: 'b10', style: { left: 1600, top: 2500, width: 90, height: 70 } },
-      // Zen Garden Trees & Bushes
-      { type: 'tree' as const, key: 'zg-t1', style: { left: 1180, top: 320, width: 70, height: 90 }, leafColor: 'red', swaying: true },
-      { type: 'tree' as const, key: 'zg-t2', style: { left: 1780, top: 400, width: 60, height: 80 }, leafColor: 'yellow', swaying: true },
-      { type: 'tree' as const, key: 'zg-t3', style: { left: 1250, top: 720, width: 80, height: 100 }, leafColor: 'green', swaying: true },
-      { type: 'bush' as const, key: 'zg-b1', style: { left: 1400, top: 450, width: 60, height: 45 }, swaying: true },
-      { type: 'bush' as const, key: 'zg-b2', style: { left: 1650, top: 720, width: 80, height: 60 }, swaying: true },
+        ...[...Array(20)].map((_, i) => ({ type: 'tree' as const, key: `t1-${i}`, style: { left: 100 + i * 220, top: 150 + (i % 2) * 20, width: 60 + (i % 3) * 20, height: 80 + (i % 3) * 30 }, leafColor: ['green', 'orange', 'red', 'yellow'][i % 4] as 'green' | 'orange' | 'red' | 'yellow' })),
+        ...[...Array(20)].map((_, i) => ({ type: 'tree' as const, key: `t2-${i}`, style: { left: 150 + i * 220, top: 2600 + (i % 3) * 15, width: 70 + (i % 2) * 20, height: 90 + (i % 2) * 30 }, leafColor: ['green', 'orange'][i % 2] as 'green' | 'orange' })),
+        ...[...Array(5)].map((_, i) => ({ type: 'tree' as const, key: `t3-${i}`, style: { left: 950 + i * 200, top: 1500 + i * 40, width: 70, height: 90 }, leafColor: 'green' as 'green' })),
+        { type: 'bush' as const, key: 'b1', style: { left: 1000, top: 700, width: 80, height: 60 } },
+        { type: 'bush' as const, key: 'b2', style: { left: 1900, top: 750, width: 90, height: 70 } },
+        { type: 'bush' as const, key: 'b3', style: { left: 100, top: 1750, width: 90, height: 70 } },
+        { type: 'bush' as const, key: 'b4', style: { left: 2800, top: 1700, width: 120, height: 90 } },
+        { type: 'bush' as const, key: 'b5', style: { left: 1000, top: 2000, width: 80, height: 60 } },
+        { type: 'bush' as const, key: 'b6', style: { left: 1900, top: 2100, width: 70, height: 55 } },
+        { type: 'bush' as const, key: 'b7', style: { left: 1600, top: 800, width: 60, height: 45 } },
+        { type: 'bush' as const, key: 'b8', style: { left: 400, top: 900, width: 100, height: 75 } },
+        { type: 'bush' as const, key: 'b9', style: { left: 2200, top: 900, width: 110, height: 80 } },
+        { type: 'bush' as const, key: 'b10', style: { left: 1600, top: 2500, width: 90, height: 70 } },
+        // Zen Garden Trees & Bushes
+        { type: 'tree' as const, key: 'zg-t1', style: { left: 1180, top: 320, width: 70, height: 90 }, leafColor: 'red', swaying: true },
+        { type: 'tree' as const, key: 'zg-t2', style: { left: 1780, top: 400, width: 60, height: 80 }, leafColor: 'yellow', swaying: true },
+        { type: 'tree' as const, key: 'zg-t3', style: { left: 1250, top: 720, width: 80, height: 100 }, leafColor: 'green', swaying: true },
+        { type: 'bush' as const, key: 'zg-b1', style: { left: 1400, top: 450, width: 60, height: 45 }, swaying: true },
+        { type: 'bush' as const, key: 'zg-b2', style: { left: 1650, top: 720, width: 80, height: 60 }, swaying: true },
     ];
-    
+
     const randomFlowers = React.useMemo(() => generateFlowers(), []);
 
     const sceneryItems = React.useMemo(() => {
@@ -663,263 +737,286 @@ const Scenery = ({ playerRoomId, onArtEaselClick, onGroundingComputerClick, onVi
     const worldWidth = 5000;
 
     return (
-    <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
-        {/* --- Conditionally Rendered Scenery --- */}
-        {(!playerRoomId || playerRoomId === 'outside') ? (
-            <>
-                {/* Ground Textures */}
-                <div className="absolute w-full h-full" style={{ backgroundColor: '#5a8d4d', backgroundImage: `url('${grassPattern}')`, imageRendering: 'pixelated' }}></div>
-                <div className="absolute w-full h-full" style={{ backgroundImage: `radial-gradient(ellipse 40% 50% at 20% 80%, #6b4d3b 50%, transparent 50%), radial-gradient(ellipse 35% 45% at 80% 20%, #755441 50%, transparent 50%), radial-gradient(ellipse 50% 60% at 50% 50%, #507e45 30%, transparent 30%)`, opacity: 0.15 }}></div>
-                
-                {/* --- Path Network --- */}
-                {/* Perimeter */}
-                <div className="absolute cobblestone-path" style={{top: 40, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0}}></div>
-                <div className="absolute cobblestone-path" style={{top: 2860, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0}}></div>
-                <div className="absolute cobblestone-path" style={{top: 40, left: 40, width: pathWidth, height: 2920, zIndex: 0}}></div>
-                <div className="absolute cobblestone-path" style={{top: 40, left: worldWidth - pathWidth - 40, width: pathWidth, height: 2920, zIndex: 0}}></div>
-                
-                {/* Main Roads & Central Plaza */}
-                <div className="absolute cobblestone-path" style={{top: 900, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0}}></div>
-                <div className="absolute cobblestone-path" style={{top: 1800, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0}}></div>
-                {/* Vertical Road broken into two parts around the plaza */}
-                <div className="absolute cobblestone-path" style={{top: 40, left: 1450, width: pathWidth, height: 1135, zIndex: 0}}></div>
-                <div className="absolute cobblestone-path" style={{top: 1575, left: 1450, width: pathWidth, height: 1385, zIndex: 0}}></div>
-                {/* Central Plaza */}
-                <div className="absolute cobblestone-path" style={{top: 1175, left: 1300, width: 400, height: 400, zIndex: 0, borderRadius: '20px'}}></div>
+        <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+            {/* --- Conditionally Rendered Scenery --- */}
+            {(!playerRoomId || playerRoomId === 'outside') ? (
+                <>
+                    {/* Ground Textures */}
+                    <GrassFloor />
+                    <div className="absolute w-full h-full" style={{ backgroundImage: `radial-gradient(ellipse 40% 50% at 20% 80%, #6b4d3b 50%, transparent 50%), radial-gradient(ellipse 35% 45% at 80% 20%, #755441 50%, transparent 50%), radial-gradient(ellipse 50% 60% at 50% 50%, #507e45 30%, transparent 30%)`, opacity: 0.15 }}></div>
+
+                    {/* --- Path Network --- */}
+                    {/* Perimeter */}
+                    <div className="absolute cobblestone-path" style={{ top: 40, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0 }}></div>
+                    <div className="absolute cobblestone-path" style={{ top: 2860, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0 }}></div>
+                    <div className="absolute cobblestone-path" style={{ top: 40, left: 40, width: pathWidth, height: 2920, zIndex: 0 }}></div>
+                    <div className="absolute cobblestone-path" style={{ top: 40, left: worldWidth - pathWidth - 40, width: pathWidth, height: 2920, zIndex: 0 }}></div>
+
+                    {/* Main Roads & Central Plaza */}
+                    <div className="absolute cobblestone-path" style={{ top: 900, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0 }}></div>
+                    <div className="absolute cobblestone-path" style={{ top: 1800, left: 40, width: worldWidth - 80, height: pathWidth, zIndex: 0 }}></div>
+                    {/* Vertical Road broken into two parts around the plaza */}
+                    <div className="absolute cobblestone-path" style={{ top: 40, left: 1450, width: pathWidth, height: 1135, zIndex: 0 }}></div>
+                    <div className="absolute cobblestone-path" style={{ top: 1575, left: 1450, width: pathWidth, height: 1385, zIndex: 0 }}></div>
+                    {/* Central Plaza */}
+                    <div className="absolute cobblestone-path" style={{ top: 1175, left: 1300, width: 400, height: 400, zIndex: 0, borderRadius: '20px' }}></div>
 
 
-                {/* Connecting Paths to Doors */}
-                <DoorPath style={{top: 140, left: 550, width: 100, height: 110}} /> {/* Library Top */}
-                <DoorPath style={{top: 800, left: 550, width: 100, height: 100}} /> {/* Library Bottom */}
-                <DoorPath style={{top: 140, left: 2450, width: 100, height: 160}} /> {/* Dojo Top */}
-                <DoorPath style={{top: 750, left: 2450, width: 100, height: 150}} /> {/* Dojo Bottom */}
-                <DoorPath style={{top: 140, left: 3415, width: 100, height: 160}} /> {/* Classroom Top */}
-                <DoorPath style={{top: 750, left: 3415, width: 100, height: 150}} /> {/* Classroom Bottom */}
-                <DoorPath style={{top: 900, left: 550, width: 100, height: 100}} /> {/* Cafe Top */}
-                <DoorPath style={{top: 1550, left: 550, width: 100, height: 250}} /> {/* Cafe Bottom */}
-                <DoorPath style={{top: 1800, left: 1500, width: 100, height: 100}} /> {/* Art Studio Top */}
-                <DoorPath style={{top: 2450, left: 1500, width: 100, height: 410}} /> {/* Art Studio Bottom */}
-                <DoorPath style={{top: 900, left: 2450, width: 100, height: 100}} /> {/* Office Top */}
-                <DoorPath style={{top: 1550, left: 2450, width: 100, height: 250}} /> {/* Office Bottom */}
-                <DoorPath style={{top: 1750, left: 3415, width: 100, height: 50}} /> {/* Dungeon Bottom */}
-                <DoorPath style={{top: 1800, left: 550, width: 100, height: 100}} /> {/* Studio Top */}
-                <DoorPath style={{top: 2450, left: 550, width: 100, height: 410}} /> {/* Studio Bottom */}
-                <DoorPath style={{top: 1800, left: 2450, width: 100, height: 100}} /> {/* Philo Cafe Top */}
-                <DoorPath style={{top: 2450, left: 2450, width: 100, height: 410}} /> {/* Philo Cafe Bottom */}
-                <DoorPath style={{top: 1800, left: 3415, width: 100, height: 200}} /> {/* Lair Top */}
+                    {/* Connecting Paths to Doors */}
+                    <DoorPath style={{ top: 140, left: 550, width: 100, height: 110 }} /> {/* Library Top */}
+                    <DoorPath style={{ top: 800, left: 550, width: 100, height: 100 }} /> {/* Library Bottom */}
+                    <DoorPath style={{ top: 140, left: 2450, width: 100, height: 160 }} /> {/* Dojo Top */}
+                    <DoorPath style={{ top: 750, left: 2450, width: 100, height: 150 }} /> {/* Dojo Bottom */}
+                    <DoorPath style={{ top: 140, left: 3415, width: 100, height: 160 }} /> {/* Classroom Top */}
+                    <DoorPath style={{ top: 750, left: 3415, width: 100, height: 150 }} /> {/* Classroom Bottom */}
+                    <DoorPath style={{ top: 900, left: 550, width: 100, height: 100 }} /> {/* Cafe Top */}
+                    <DoorPath style={{ top: 1550, left: 550, width: 100, height: 250 }} /> {/* Cafe Bottom */}
+                    <DoorPath style={{ top: 1800, left: 1500, width: 100, height: 100 }} /> {/* Art Studio Top */}
+                    <DoorPath style={{ top: 2450, left: 1500, width: 100, height: 410 }} /> {/* Art Studio Bottom */}
+                    <DoorPath style={{ top: 900, left: 2450, width: 100, height: 100 }} /> {/* Office Top */}
+                    <DoorPath style={{ top: 1550, left: 2450, width: 100, height: 250 }} /> {/* Office Bottom */}
+                    <DoorPath style={{ top: 1750, left: 3415, width: 100, height: 50 }} /> {/* Dungeon Bottom */}
+                    <DoorPath style={{ top: 1800, left: 550, width: 100, height: 100 }} /> {/* Studio Top */}
+                    <DoorPath style={{ top: 2450, left: 550, width: 100, height: 410 }} /> {/* Studio Bottom */}
+                    <DoorPath style={{ top: 1800, left: 2450, width: 100, height: 100 }} /> {/* Philo Cafe Top */}
+                    <DoorPath style={{ top: 2450, left: 2450, width: 100, height: 410 }} /> {/* Philo Cafe Bottom */}
+                    <DoorPath style={{ top: 1800, left: 3415, width: 100, height: 200 }} /> {/* Lair Top */}
 
-                {/* --- Decorations --- */}
-                <FountainParticles />
-                <Fountain style={{left: 1450, top: 1325, width: 100, height: 100}}/>
-                <Bench style={{left: 1320, top: 1100, width: 100, height: 24}}/>
-                <Bench style={{left: 1580, top: 1100, width: 100, height: 24}}/>
-                <Bench style={{left: 1320, top: 1600, width: 100, height: 24}}/>
-                <Bench style={{left: 1580, top: 1600, width: 100, height: 24}}/>
-                
-                {/* Zen Garden Scenery */}
-                <Pond style={{ left: 1300, top: 500, width: 400, height: 200 }} />
-                <StoneLantern style={{ left: 1200, top: 400, width: 30, height: 50 }} />
-                <StoneLantern style={{ left: 1750, top: 600, width: 30, height: 50 }} />
-                <ManualBuildingTitle text="Zen Garden" x={1500} y={240} />
+                    {/* --- Decorations --- */}
+                    <FountainParticles />
+                    <Fountain style={{ left: 1450, top: 1325, width: 100, height: 100 }} />
+                    <Bench style={{ left: 1320, top: 1100, width: 100, height: 24 }} />
+                    <Streetlamp style={{ left: 1280, top: 1080, width: 30, height: 80 }} />
+                    <Bench style={{ left: 1580, top: 1100, width: 100, height: 24 }} />
+                    <Streetlamp style={{ left: 1690, top: 1080, width: 30, height: 80 }} />
+                    <Bench style={{ left: 1320, top: 1600, width: 100, height: 24 }} />
+                    <Streetlamp style={{ left: 1280, top: 1580, width: 30, height: 80 }} />
+                    <Bench style={{ left: 1580, top: 1600, width: 100, height: 24 }} />
 
-                {sceneryItems.map(item => {
-                    const animProps = animationMap.get(item.key) || { sway: false, sparkle: false, delay: '0s' };
-                    const itemStyle = { ...item.style, '--sway-delay': animProps.delay } as React.CSSProperties;
-                  
-                    if (item.type === 'tree') return <PixelTree key={item.key} style={itemStyle} leafColor={item.leafColor as 'green' | 'orange' | 'red' | 'yellow'} swaying={animProps.sway} />
-                    if (item.type === 'bush') return <PixelBush key={item.key} style={itemStyle} swaying={animProps.sway}/>
-                    if (item.type === 'flower') return <PixelFlower key={item.key} style={item.style} color1={(item as any).color1} color2={(item as any).color2} sparkling={animProps.sparkle} sparkleDelay={animProps.delay} />
-                    return null;
-                })}
-            </>
-        ) : (
-             <div className="absolute inset-0 bg-[#0c142c]"></div>
-        )}
+                    {/* Zen Garden Scenery */}
+                    <Pond style={{ left: 1300, top: 500, width: 400, height: 200 }} />
+                    {/* Fireflies for Zen Garden */}
+                    <div className="absolute" style={{ left: 1300, top: 450, width: 400, height: 250, pointerEvents: 'none' }}>
+                        <div className="firefly" style={{ left: '20%', top: '60%', animationDelay: '0s' }}></div>
+                        <div className="firefly" style={{ left: '50%', top: '40%', animationDelay: '1.5s' }}></div>
+                        <div className="firefly" style={{ left: '80%', top: '70%', animationDelay: '3s' }}></div>
+                        <div className="firefly" style={{ left: '40%', top: '20%', animationDelay: '4.5s' }}></div>
+                    </div>
+                    <StoneLantern style={{ left: 1200, top: 400, width: 30, height: 50 }} />
+                    <StoneLantern style={{ left: 1750, top: 600, width: 30, height: 50 }} />
+                    <ManualBuildingTitle text="Zen Garden" x={1500} y={240} />
 
-        {/* --- BUILDINGS & ZONES (Always Rendered) --- */}
-        {/* Dojo */}
-        <BuildingShadow zoneKey="dojo" />
-        <div className="absolute" style={{...getBuildingStyle('dojo'), border: '50px solid #8c7853', backgroundColor: '#fdf6e3' }}>
-            <TatamiFloorTexture />
-            <TrainingDummy style={{ left: 2170, top: 650, width: 30, height: 70 }} />
-            <TrainingDummy style={{ left: 2700, top: 650, width: 30, height: 70 }} />
+                    {sceneryItems.map(item => {
+                        const animProps = animationMap.get(item.key) || { sway: false, sparkle: false, delay: '0s' };
+                        const itemStyle = { ...item.style, '--sway-delay': animProps.delay } as React.CSSProperties;
+
+                        if (item.type === 'tree') return <PixelTree key={item.key} style={itemStyle} leafColor={item.leafColor as 'green' | 'orange' | 'red' | 'yellow'} swaying={animProps.sway} />
+                        if (item.type === 'bush') return <PixelBush key={item.key} style={itemStyle} swaying={animProps.sway} />
+                        if (item.type === 'flower') return <PixelFlower key={item.key} style={item.style} color1={(item as any).color1} color2={(item as any).color2} sparkling={animProps.sparkle} sparkleDelay={animProps.delay} />
+                        return null;
+                    })}
+                </>
+            ) : (
+                <div className="absolute inset-0 bg-[#0c142c]"></div>
+            )}
+
+            {/* --- BUILDINGS & ZONES (Always Rendered) --- */}
+            {/* Dojo */}
+            <SoftBuildingShadow zoneKey="dojo" />
+            <div className="absolute room-vignette-zen" style={{ ...getBuildingStyle('dojo'), border: '50px solid #8c7853', backgroundColor: '#fdf6e3' }}>
+                <TatamiFloorTexture />
+                <TrainingDummy style={{ left: 2170, top: 650, width: 30, height: 70 }} />
+                <TrainingDummy style={{ left: 2700, top: 650, width: 30, height: 70 }} />
+            </div>
+            {DOOR_POSITIONS.dojo.map(door => <Door key={`door-dojo-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Prompting Dojo" x={(ZONES.dojo.x1 + ZONES.dojo.x2) / 2} y={ZONES.dojo.y1 - 50} />
+            <div style={{ position: 'absolute', left: 2200, top: 450, width: 20, height: 250, backgroundColor: '#d4c098', border: '3px solid #8c7853' }}></div>
+            <div style={{ position: 'absolute', left: 2680, top: 450, width: 20, height: 250, backgroundColor: '#d4c098', border: '3px solid #8c7853' }}></div>
+
+            {/* Cafe */}
+            <SoftBuildingShadow zoneKey="cafe" />
+            <div className="absolute room-vignette-warm" style={{ ...getBuildingStyle('cafe'), border: '50px solid #4a2c2a' }}>
+                <WoodFloorTexture color="#6e5a49" />
+            </div>
+            {DOOR_POSITIONS.cafe.map(door => <Door key={`door-cafe-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="AI Cafe" x={(ZONES.cafe.x1 + ZONES.cafe.x2) / 2} y={ZONES.cafe.y1 - 50} />
+            <CounterSegment style={{ left: 260, top: 1060, width: 80, height: 350 }} />
+            <CounterSegment style={{ left: 340, top: 1410, width: 120, height: 80 }} />
+            <CoffeeMachine style={{ left: 270, top: 1100, width: 40, height: 50 }} />
+            <div style={{ position: 'absolute', left: 285, top: 1090 }}>
+                <div className="steam-wisp" style={{ animationDelay: '0s' }}></div>
+                <div className="steam-wisp" style={{ left: 8, animationDelay: '1.2s' }}></div>
+            </div>
+            <RoundCafeTable style={{ left: 700, top: 1120, width: 60, height: 60 }} />
+            <Chair style={{ left: 710, top: 1080, width: 40, height: 40 }} facing="down" />
+            <Chair style={{ left: 710, top: 1180, width: 40, height: 40 }} facing="up" />
+            <RoundCafeTable style={{ left: 700, top: 1370, width: 60, height: 60 }} />
+            <Chair style={{ left: 710, top: 1330, width: 40, height: 40 }} facing="down" />
+            <Chair style={{ left: 710, top: 1430, width: 40, height: 40 }} facing="up" />
+
+            {/* Library */}
+            <SoftBuildingShadow zoneKey="library" />
+            <div className="absolute room-vignette" style={{ ...getBuildingStyle('library'), border: '50px solid #4a2c2a' }}>
+                <div className="dust-particles"></div>
+                <WoodFloorTexture color="#d1b897" />
+            </div>
+            {DOOR_POSITIONS.library.map(door => <Door key={`door-library-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="The Grand Library" x={(ZONES.library.x1 + ZONES.library.x2) / 2} y={ZONES.library.y1 - 50} />
+            <Bookshelf style={{ left: 250, top: 350, width: 30, height: 400 }} />
+            <Bookshelf style={{ left: 820, top: 350, width: 30, height: 400 }} />
+            <InteractiveTerminal
+                style={{ left: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.left, top: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.top, width: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.width, height: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.height }}
+                glowing
+                onClick={(e) => { e.stopPropagation(); onGroundingComputerClick(); }}
+                label="Grounding Computer Terminal"
+            />
+            <RoundCafeTable style={{ left: 700, top: 750, width: 50, height: 50 }} />
+            <Globe style={{ left: 710, top: 730, width: 30, height: 40 }} />
+
+            {/* Office */}
+            <SoftBuildingShadow zoneKey="office" />
+            <div className="absolute room-vignette" style={{ ...getBuildingStyle('office'), border: '50px solid #333', backgroundColor: '#e5e7eb' }}>
+                <div className="absolute w-full h-full" style={{ backgroundImage: `linear-gradient(45deg, #d1d5db 25%, transparent 25%, linear-gradient(-45deg, #d1d5db 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d1d5db 75%), linear-gradient(-45deg, transparent 75%, #d1d5db 75%)`, backgroundSize: '20px 20px', backgroundColor: '#e5e7eb', opacity: 0.5 }}></div>
+            </div>
+            {DOOR_POSITIONS.office.map(door => <Door key={`door-office-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Tech Office" x={(ZONES.office.x1 + ZONES.office.x2) / 2} y={ZONES.office.y1 - 50} />
+            <OfficeDesk style={{ left: 2150, top: 1150, width: 160, height: 50 }} />
+            <Computer style={{ left: 2200, top: 1110, width: 50, height: 45 }} />
+            <OfficeDesk style={{ left: 2640, top: 1150, width: 160, height: 50 }} />
+            <Computer style={{ left: 2690, top: 1110, width: 50, height: 45 }} />
+            <InteractiveTerminal
+                style={{ left: INTERACTIVE_OBJECTS.VIBE_COMPUTER.left, top: INTERACTIVE_OBJECTS.VIBE_COMPUTER.top, width: INTERACTIVE_OBJECTS.VIBE_COMPUTER.width, height: INTERACTIVE_OBJECTS.VIBE_COMPUTER.height }}
+                glowing
+                onClick={(e) => { e.stopPropagation(); onVibeComputerClick(); }}
+                label="Vibe-Coding Terminal"
+            />
+            <InteractiveTerminal
+                style={{ left: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.left, top: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.top, width: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.width, height: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.height }}
+                glowing
+                onClick={(e) => { e.stopPropagation(); onModelComparisonTerminalClick(); }}
+                label="Model Comparison Terminal"
+            />
+
+            {/* Studio */}
+            <SoftBuildingShadow zoneKey="studio" />
+            <div className="absolute room-vignette" style={{ ...getBuildingStyle('studio'), border: '50px solid #222', backgroundColor: '#333' }}>
+                <div className="dust-particles"></div>
+            </div>
+            {DOOR_POSITIONS.studio.map(door => <Door key={`door-studio-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Writer's Studio" x={(ZONES.studio.x1 + ZONES.studio.x2) / 2} y={ZONES.studio.y1 - 50} />
+            <div style={{ position: 'absolute', left: 450, top: 2100, width: 200, height: 50, backgroundColor: '#eee', border: '4px solid #222' }} />
+            <InteractiveTerminal
+                style={{ left: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.left, top: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.top, width: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.width, height: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.height }}
+                glowing
+                onClick={(e) => { e.stopPropagation(); onScreenplayTerminalClick(); }}
+                label="Screenplay Typewriter"
+            />
+            <div style={{ position: 'absolute', left: 250, top: 2300, width: 100, height: 100, backgroundColor: '#555', border: '4px solid #222' }}></div>
+            <Bookshelf style={{ left: 210, top: 1950, width: 30, height: 400 }} />
+            <Bookshelf style={{ left: 860, top: 1950, width: 30, height: 400 }} />
+            <PixelFlower style={{ left: 800, top: 1950, width: 50, height: 50 }} color1="white" color2="lightblue" />
+
+            {/* Art Studio */}
+            <SoftBuildingShadow zoneKey="art_studio" />
+            <div className="absolute room-vignette" style={{ ...getBuildingStyle('art_studio'), border: '50px solid #854d0e', backgroundColor: '#fef3c7' }}>
+                <div className="absolute w-full h-full opacity-30" style={{
+                    backgroundImage: 'radial-gradient(#fca5a5 1px, transparent 1px), radial-gradient(#60a5fa 1px, transparent 1px)',
+                    backgroundSize: '20px 20px',
+                    backgroundPosition: '0 0, 10px 10px'
+                }}></div>
+                <PaintSplatter style={{ left: 1400, top: 2100, width: 40, height: 40 }} color="#ef4444" />
+                <PaintSplatter style={{ left: 1600, top: 2300, width: 50, height: 50 }} color="#3b82f6" />
+                <PaintSplatter style={{ left: 1300, top: 2200, width: 30, height: 30 }} color="#eab308" />
+            </div>
+            {DOOR_POSITIONS.art_studio.map(door => <Door key={`door-art_studio-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Art Studio" x={(ZONES.art_studio.x1 + ZONES.art_studio.x2) / 2} y={ZONES.art_studio.y1 - 50} />
+
+            {/* Agent Easels */}
+            {[INTERACTIVE_OBJECTS.AGENT_EASEL_1, INTERACTIVE_OBJECTS.AGENT_EASEL_2, INTERACTIVE_OBJECTS.AGENT_EASEL_3].map((easel, i) => {
+                const artifact = worldArtifacts.find(art => art.objectId === easel.id);
+                return (
+                    <Easel
+                        key={easel.id}
+                        style={{ left: easel.left, top: easel.top, width: easel.width, height: easel.height }}
+                        imageUrl={artifact?.imageUrl || null}
+                        onClick={artifact ? (e) => { e.stopPropagation(); onWorldArtifactClick(artifact); } : undefined}
+                        glowing={!!artifact}
+                        label={`Easel with artwork by ${artifact?.agentName || `Artist ${i + 1}`}`}
+                    />
+                );
+            })}
+
+            {/* Player's Interactive Easel */}
+            <Easel
+                style={{ left: INTERACTIVE_OBJECTS.PLAYER_EASEL.left, top: INTERACTIVE_OBJECTS.PLAYER_EASEL.top, width: INTERACTIVE_OBJECTS.PLAYER_EASEL.width, height: INTERACTIVE_OBJECTS.PLAYER_EASEL.height }}
+                glowing
+                onClick={(e) => { e.stopPropagation(); onArtEaselClick(); }}
+                imageUrl={displayedImageUrl}
+                label="Interactive Art Easel"
+            />
+
+            {/* Philo Cafe */}
+            <SoftBuildingShadow zoneKey="philo_cafe" />
+            <div className="absolute room-vignette-warm" style={{ ...getBuildingStyle('philo_cafe'), border: '50px solid #4a2c2a' }}>
+                <WoodFloorTexture color="#6e5a49" />
+            </div>
+            {DOOR_POSITIONS.philo_cafe.map(door => <Door key={`door-philo_cafe-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Philo Cafe" x={(ZONES.philo_cafe.x1 + ZONES.philo_cafe.x2) / 2} y={ZONES.philo_cafe.y1 - 50} />
+            <div style={{ position: 'absolute', left: 2150, top: 2000, width: 100, height: 250, backgroundColor: '#593d2b', border: '4px solid #3a2d21' }}></div>
+            <RoundCafeTable style={{ left: 2350, top: 2300, width: 50, height: 50 }} />
+            <RoundCafeTable style={{ left: 2600, top: 2100, width: 50, height: 50 }} />
+            <Bookshelf style={{ left: 2720, top: 2200, width: 30, height: 200 }} />
+
+            {/* Dungeon */}
+            <SoftBuildingShadow zoneKey="dungeon" />
+            <div className="absolute room-vignette-cold" style={{ ...getBuildingStyle('dungeon'), border: '50px solid #292524' }}>
+                <StoneFloorTexture />
+            </div>
+            {DOOR_POSITIONS.dungeon.map(door => <Door key={`door-dungeon-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Dungeon" x={(ZONES.dungeon.x1 + ZONES.dungeon.x2) / 2} y={ZONES.dungeon.y1 - 50} />
+            <DnDTable style={{ left: 3300, top: 1400, width: 300, height: 200 }} />
+            <InteractiveGameBoard
+                style={{ left: INTERACTIVE_OBJECTS.GAME_BOARD.left, top: INTERACTIVE_OBJECTS.GAME_BOARD.top, width: INTERACTIVE_OBJECTS.GAME_BOARD.width, height: INTERACTIVE_OBJECTS.GAME_BOARD.height }}
+                glowing
+                onClick={(e) => { e.stopPropagation(); onGameBoardClick(); }}
+                label="Dungeons and Dragons Game Board"
+            />
+
+            {/* Classroom */}
+            <SoftBuildingShadow zoneKey="classroom" />
+            <div className="absolute room-vignette" style={{ ...getBuildingStyle('classroom'), border: '50px solid #4a2c2a' }}>
+                <WoodFloorTexture color="#d1b897" />
+            </div>
+            {DOOR_POSITIONS.classroom.map(door => <Door key={`door-classroom-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Classroom" x={(ZONES.classroom.x1 + ZONES.classroom.x2) / 2} y={ZONES.classroom.y1 - 50} />
+            <Blackboard style={{ left: 3350, top: 360, width: 200, height: 100 }} />
+            <ChalkDiagram style={{ left: 3400, top: 380, width: 100, height: 50 }} />
+            <StudentDesk style={{ left: 3200, top: 550, width: 70, height: 40 }} />
+            <StudentDesk style={{ left: 3600, top: 550, width: 70, height: 40 }} />
+            <StudentDesk style={{ left: 3200, top: 650, width: 70, height: 40 }} />
+            <StudentDesk style={{ left: 3600, top: 650, width: 70, height: 40 }} />
+
+            {/* Skynet's Lair */}
+            <SoftBuildingShadow zoneKey="lair" />
+            <div className="absolute room-vignette-cold" style={{ ...getBuildingStyle('lair'), border: '50px solid #111827', backgroundColor: '#1f2937' }}>
+                <div className="absolute w-full h-full lair-scanline"></div>
+                <div className="absolute w-full h-full" style={{ backgroundImage: `linear-gradient(90deg, #374151 1px, transparent 1px), linear-gradient(#374151 1px, transparent 1px)`, backgroundSize: '40px 40px', imageRendering: 'pixelated' }}></div>
+            </div>
+            {DOOR_POSITIONS.lair.map(door => <Door key={`door-lair-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
+            <ManualBuildingTitle text="Skynet's Lair" x={(ZONES.lair.x1 + ZONES.lair.x2) / 2} y={ZONES.lair.y1 - 50} />
+            <ServerRack style={{ left: 3180, top: 2100, width: 50, height: 150 }} />
+            <ServerRack style={{ left: 3180, top: 2300, width: 50, height: 150 }} />
+            <ServerRack style={{ left: 3670, top: 2100, width: 50, height: 150 }} />
+            <ServerRack style={{ left: 3670, top: 2300, width: 50, height: 150 }} />
+
+            {/* Trash Zone */}
+            <div className="absolute border-4 border-dashed border-red-500 flex items-center justify-center" style={{ left: ZONES.trash.x1, top: ZONES.trash.y1, width: ZONES.trash.x2 - ZONES.trash.x1, height: ZONES.trash.y2 - ZONES.trash.y1, zIndex: 0 }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgba(239, 68, 68, 0.5)" className="w-24 h-24">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                </svg>
+            </div>
         </div>
-        {DOOR_POSITIONS.dojo.map(door => <Door key={`door-dojo-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Prompting Dojo" x={(ZONES.dojo.x1 + ZONES.dojo.x2)/2} y={ZONES.dojo.y1 - 50} />
-        <div style={{position: 'absolute', left: 2200, top: 450, width: 20, height: 250, backgroundColor: '#d4c098', border: '3px solid #8c7853' }}></div>
-        <div style={{position: 'absolute', left: 2680, top: 450, width: 20, height: 250, backgroundColor: '#d4c098', border: '3px solid #8c7853' }}></div>
-
-        {/* Cafe */}
-        <BuildingShadow zoneKey="cafe" />
-        <div className="absolute" style={{...getBuildingStyle('cafe'), border: '50px solid #4a2c2a'}}>
-            <WoodFloorTexture color="#6e5a49"/>
-        </div>
-        {DOOR_POSITIONS.cafe.map(door => <Door key={`door-cafe-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="AI Cafe" x={(ZONES.cafe.x1 + ZONES.cafe.x2)/2} y={ZONES.cafe.y1 - 50} />
-        <CounterSegment style={{ left: 260, top: 1060, width: 80, height: 350 }} />
-        <CounterSegment style={{ left: 340, top: 1410, width: 120, height: 80 }} />
-        <CoffeeMachine style={{ left: 270, top: 1100, width: 40, height: 50}}/>
-        <RoundCafeTable style={{ left: 700, top: 1120, width: 60, height: 60 }} />
-        <Chair style={{ left: 710, top: 1080, width: 40, height: 40 }} facing="down" />
-        <Chair style={{ left: 710, top: 1180, width: 40, height: 40 }} facing="up" />
-        <RoundCafeTable style={{ left: 700, top: 1370, width: 60, height: 60 }} />
-        <Chair style={{ left: 710, top: 1330, width: 40, height: 40 }} facing="down" />
-        <Chair style={{ left: 710, top: 1430, width: 40, height: 40 }} facing="up" />
-        
-        {/* Library */}
-        <BuildingShadow zoneKey="library" />
-        <div className="absolute" style={{...getBuildingStyle('library'), border: '50px solid #4a2c2a' }}>
-            <WoodFloorTexture color="#d1b897" />
-        </div>
-        {DOOR_POSITIONS.library.map(door => <Door key={`door-library-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="The Grand Library" x={(ZONES.library.x1 + ZONES.library.x2)/2} y={ZONES.library.y1 - 50} />
-        <Bookshelf style={{left: 250, top: 350, width: 30, height: 400}}/>
-        <Bookshelf style={{left: 820, top: 350, width: 30, height: 400}}/>
-        <InteractiveTerminal
-            style={{ left: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.left, top: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.top, width: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.width, height: INTERACTIVE_OBJECTS.GROUNDING_COMPUTER.height }}
-            glowing
-            onClick={(e) => { e.stopPropagation(); onGroundingComputerClick(); }}
-            label="Grounding Computer Terminal"
-        />
-        <RoundCafeTable style={{left: 700, top: 750, width: 50, height: 50}}/>
-
-        {/* Office */}
-        <BuildingShadow zoneKey="office" />
-        <div className="absolute" style={{...getBuildingStyle('office'), border: '50px solid #333', backgroundColor: '#e5e7eb'}}>
-            <div className="absolute w-full h-full" style={{backgroundImage: `linear-gradient(45deg, #d1d5db 25%, transparent 25%, linear-gradient(-45deg, #d1d5db 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d1d5db 75%), linear-gradient(-45deg, transparent 75%, #d1d5db 75%)`, backgroundSize: '20px 20px', backgroundColor: '#e5e7eb', opacity: 0.5}}></div>
-        </div>
-        {DOOR_POSITIONS.office.map(door => <Door key={`door-office-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Tech Office" x={(ZONES.office.x1 + ZONES.office.x2)/2} y={ZONES.office.y1 - 50} />
-        <OfficeDesk style={{left: 2150, top: 1150, width: 160, height: 50}}/>
-        <Computer style={{left: 2200, top: 1110, width: 50, height: 45}}/>
-        <OfficeDesk style={{left: 2640, top: 1150, width: 160, height: 50}}/>
-        <Computer style={{left: 2690, top: 1110, width: 50, height: 45}}/>
-        <InteractiveTerminal
-            style={{ left: INTERACTIVE_OBJECTS.VIBE_COMPUTER.left, top: INTERACTIVE_OBJECTS.VIBE_COMPUTER.top, width: INTERACTIVE_OBJECTS.VIBE_COMPUTER.width, height: INTERACTIVE_OBJECTS.VIBE_COMPUTER.height }}
-            glowing
-            onClick={(e) => { e.stopPropagation(); onVibeComputerClick(); }}
-            label="Vibe-Coding Terminal"
-        />
-        <InteractiveTerminal
-            style={{ left: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.left, top: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.top, width: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.width, height: INTERACTIVE_OBJECTS.MODEL_COMPARISON_TERMINAL.height }}
-            glowing
-            onClick={(e) => { e.stopPropagation(); onModelComparisonTerminalClick(); }}
-            label="Model Comparison Terminal"
-        />
-
-        {/* Studio */}
-        <BuildingShadow zoneKey="studio" />
-        <div className="absolute" style={{...getBuildingStyle('studio'), border: '50px solid #222', backgroundColor: '#333'}}></div>
-        {DOOR_POSITIONS.studio.map(door => <Door key={`door-studio-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Writer's Studio" x={(ZONES.studio.x1 + ZONES.studio.x2)/2} y={ZONES.studio.y1 - 50} />
-        <div style={{position: 'absolute', left: 450, top: 2100, width: 200, height: 50, backgroundColor: '#eee', border: '4px solid #222'}} />
-        <InteractiveTerminal
-            style={{ left: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.left, top: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.top, width: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.width, height: INTERACTIVE_OBJECTS.SCREENPLAY_TERMINAL.height }}
-            glowing
-            onClick={(e) => { e.stopPropagation(); onScreenplayTerminalClick(); }}
-            label="Screenplay Typewriter"
-        />
-        <div style={{position: 'absolute', left: 250, top: 2300, width: 100, height: 100, backgroundColor: '#555', border: '4px solid #222'}}></div>
-        <Bookshelf style={{left: 210, top: 1950, width: 30, height: 400}}/>
-        <Bookshelf style={{left: 860, top: 1950, width: 30, height: 400}}/>
-        <PixelFlower style={{left: 800, top: 1950, width: 50, height: 50}} color1="white" color2="lightblue" />
-
-        {/* Art Studio */}
-        <BuildingShadow zoneKey="art_studio" />
-        <div className="absolute" style={{...getBuildingStyle('art_studio'), border: '50px solid #854d0e', backgroundColor: '#fef3c7' }}>
-            <div className="absolute w-full h-full opacity-30" style={{
-                backgroundImage: 'radial-gradient(#fca5a5 1px, transparent 1px), radial-gradient(#60a5fa 1px, transparent 1px)',
-                backgroundSize: '20px 20px',
-                backgroundPosition: '0 0, 10px 10px'
-            }}></div>
-        </div>
-        {DOOR_POSITIONS.art_studio.map(door => <Door key={`door-art_studio-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Art Studio" x={(ZONES.art_studio.x1 + ZONES.art_studio.x2)/2} y={ZONES.art_studio.y1 - 50} />
-        
-        {/* Agent Easels */}
-        {[INTERACTIVE_OBJECTS.AGENT_EASEL_1, INTERACTIVE_OBJECTS.AGENT_EASEL_2, INTERACTIVE_OBJECTS.AGENT_EASEL_3].map((easel, i) => {
-            const artifact = worldArtifacts.find(art => art.objectId === easel.id);
-            return (
-                <Easel 
-                    key={easel.id}
-                    style={{left: easel.left, top: easel.top, width: easel.width, height: easel.height}} 
-                    imageUrl={artifact?.imageUrl || null}
-                    onClick={artifact ? (e) => { e.stopPropagation(); onWorldArtifactClick(artifact); } : undefined}
-                    glowing={!!artifact}
-                    label={`Easel with artwork by ${artifact?.agentName || `Artist ${i + 1}`}`}
-                />
-            );
-        })}
-        
-        {/* Player's Interactive Easel */}
-        <Easel 
-            style={{ left: INTERACTIVE_OBJECTS.PLAYER_EASEL.left, top: INTERACTIVE_OBJECTS.PLAYER_EASEL.top, width: INTERACTIVE_OBJECTS.PLAYER_EASEL.width, height: INTERACTIVE_OBJECTS.PLAYER_EASEL.height }}
-            glowing 
-            onClick={(e) => { e.stopPropagation(); onArtEaselClick(); }} 
-            imageUrl={displayedImageUrl}
-            label="Interactive Art Easel"
-        />
-
-        {/* Philo Cafe */}
-        <BuildingShadow zoneKey="philo_cafe" />
-        <div className="absolute" style={{...getBuildingStyle('philo_cafe'), border: '50px solid #4a2c2a'}}>
-             <WoodFloorTexture color="#6e5a49" />
-        </div>
-        {DOOR_POSITIONS.philo_cafe.map(door => <Door key={`door-philo_cafe-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Philo Cafe" x={(ZONES.philo_cafe.x1 + ZONES.philo_cafe.x2)/2} y={ZONES.philo_cafe.y1 - 50} />
-        <div style={{position: 'absolute', left: 2150, top: 2000, width: 100, height: 250, backgroundColor: '#593d2b', border: '4px solid #3a2d21' }}></div>
-        <RoundCafeTable style={{left: 2350, top: 2300, width: 50, height: 50}} />
-        <RoundCafeTable style={{left: 2600, top: 2100, width: 50, height: 50}} />
-        <Bookshelf style={{left: 2720, top: 2200, width: 30, height: 200}}/>
-
-        {/* Dungeon */}
-        <BuildingShadow zoneKey="dungeon" />
-        <div className="absolute" style={{...getBuildingStyle('dungeon'), border: '50px solid #292524'}}>
-             <StoneFloorTexture />
-        </div>
-        {DOOR_POSITIONS.dungeon.map(door => <Door key={`door-dungeon-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Dungeon" x={(ZONES.dungeon.x1 + ZONES.dungeon.x2)/2} y={ZONES.dungeon.y1 - 50} />
-        <DnDTable style={{left: 3300, top: 1400, width: 300, height: 200}}/>
-        <InteractiveGameBoard
-            style={{ left: INTERACTIVE_OBJECTS.GAME_BOARD.left, top: INTERACTIVE_OBJECTS.GAME_BOARD.top, width: INTERACTIVE_OBJECTS.GAME_BOARD.width, height: INTERACTIVE_OBJECTS.GAME_BOARD.height }}
-            glowing
-            onClick={(e) => { e.stopPropagation(); onGameBoardClick(); }}
-            label="Dungeons and Dragons Game Board"
-        />
-
-        {/* Classroom */}
-        <BuildingShadow zoneKey="classroom" />
-        <div className="absolute" style={{...getBuildingStyle('classroom'), border: '50px solid #4a2c2a'}}>
-            <WoodFloorTexture color="#d1b897" />
-        </div>
-        {DOOR_POSITIONS.classroom.map(door => <Door key={`door-classroom-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Classroom" x={(ZONES.classroom.x1 + ZONES.classroom.x2)/2} y={ZONES.classroom.y1 - 50} />
-        <Blackboard style={{left: 3350, top: 360, width: 200, height: 100}}/>
-        <StudentDesk style={{left: 3200, top: 550, width: 70, height: 40}}/>
-        <StudentDesk style={{left: 3600, top: 550, width: 70, height: 40}}/>
-        <StudentDesk style={{left: 3200, top: 650, width: 70, height: 40}}/>
-        <StudentDesk style={{left: 3600, top: 650, width: 70, height: 40}}/>
-
-        {/* Skynet's Lair */}
-        <BuildingShadow zoneKey="lair" />
-        <div className="absolute" style={{...getBuildingStyle('lair'), border: '50px solid #111827', backgroundColor: '#1f2937'}}>
-            <div className="absolute w-full h-full" style={{backgroundImage: `linear-gradient(90deg, #374151 1px, transparent 1px), linear-gradient(#374151 1px, transparent 1px)`, backgroundSize: '40px 40px', imageRendering: 'pixelated'}}></div>
-        </div>
-        {DOOR_POSITIONS.lair.map(door => <Door key={`door-lair-${door.side}`} style={{ left: door.x, top: door.y, width: 100, height: 50 }} />)}
-        <ManualBuildingTitle text="Skynet's Lair" x={(ZONES.lair.x1 + ZONES.lair.x2)/2} y={ZONES.lair.y1 - 50} />
-        <ServerRack style={{left: 3180, top: 2100, width: 50, height: 150}}/>
-        <ServerRack style={{left: 3180, top: 2300, width: 50, height: 150}}/>
-        <ServerRack style={{left: 3670, top: 2100, width: 50, height: 150}}/>
-        <ServerRack style={{left: 3670, top: 2300, width: 50, height: 150}}/>
-        
-        {/* Trash Zone */}
-        <div className="absolute border-4 border-dashed border-red-500 flex items-center justify-center" style={{ left: ZONES.trash.x1, top: ZONES.trash.y1, width: ZONES.trash.x2 - ZONES.trash.x1, height: ZONES.trash.y2 - ZONES.trash.y1, zIndex: 0 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgba(239, 68, 68, 0.5)" className="w-24 h-24">
-                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
-        </div>
-    </div>
-  );
+    );
 };
 
 export default Scenery;
