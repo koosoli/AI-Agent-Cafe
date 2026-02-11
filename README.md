@@ -2,9 +2,17 @@
 
 Welcome to the AI Agent Cafe, a dynamic and interactive web application where you can create, configure, and observe AI agents as they discuss topics you provide. Set the stage by literally walking into different rooms, assign unique personas, and watch as these digital minds collaborate, debate, and create in a charming pixel-art world.
 
+### 🎮 [Play Live Now (No Installation Required)](https://koosoli.github.io/AI-Agent-Cafe/)
+
+[![Play Live](https://img.shields.io/badge/Play-Live_Demo-success?style=for-the-badge&logo=google-chrome&logoColor=white)](https://koosoli.github.io/AI-Agent-Cafe/)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-orange?style=for-the-badge&logo=buymeacoffee&logoColor=white)](https://buymeacoffee.com/koosoli)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-pink?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sponsors/koosoli)
+
+**Note:** You can test the full experience directly in your browser without installing anything!
+
 This entire project is **Vibe Coded** by Olivier Koos. The code, pixel art, sound effects, and music are all generated with the assistance AI tools, showcasing a modern and rapid approach to application development.
 
-[![AI Agent Cafe Demo](https://github.com/koosoli/AI-Agent-Cafe/blob/main/public/giphy.gif?raw=true)](https://www.youtube.com/watch?v=T6NCCVWE_MI)
+[![AI Agent Cafe Demo](./public/giphy.gif)](https://www.youtube.com/watch?v=T6NCCVWE_MI)
 
 [Click here for the YouTube presentation](https://www.youtube.com/watch?v=T6NCCVWE_MI)
 
