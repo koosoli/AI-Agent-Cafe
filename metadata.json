@@ -1,0 +1,8 @@
+{
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "name": "Agent World 0.2.6.00.12",
+  "description": "A virtual world where you can assign personas to different AI agents and watch them discuss topics you provide. Explore different rooms, engage in proximity-based chats, and configure agents in a living, interactive environment.",
+  "prompt": ""
+}

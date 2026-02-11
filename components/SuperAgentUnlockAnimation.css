@@ -1,0 +1,115 @@
+.super-agent-unlock-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'VT323', monospace;
+    color: #0f0;
+    text-shadow: 0 0 5px #0f0, 0 0 10px #0f0;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+    overflow: hidden;
+}
+.super-agent-unlock-container.phase-1,
+.super-agent-unlock-container.phase-2 {
+    opacity: 1;
+}
+.super-agent-unlock-container.phase-3 {
+    opacity: 0;
+}
+
+@keyframes scanline {
+    0% { transform: translateY(-10%); }
+    100% { transform: translateY(110%); }
+}
+.scan-line {
+    position: absolute;
+    width: 100%;
+    height: 4px;
+    background: rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 10px #0f0;
+    animation: scanline 3s linear infinite;
+}
+
+.unlock-text {
+    text-align: center;
+    opacity: 0;
+    transform: scale(1.2);
+    transition: opacity 0.5s ease-in, transform 0.5s ease-in;
+}
+.super-agent-unlock-container.phase-2 .unlock-text {
+    opacity: 1;
+    transform: scale(1);
+}
+.unlock-text h1 {
+    font-size: 4rem;
+    letter-spacing: 0.5rem;
+    animation: text-flicker 3s linear infinite;
+}
+.unlock-text h2 {
+    font-size: 3rem;
+    color: #ff0;
+    text-shadow: 0 0 5px #ff0;
+    margin: 1rem 0;
+    animation: text-flicker 5s linear infinite reverse;
+}
+.unlock-text p {
+    font-size: 1.5rem;
+}
+
+@keyframes text-flicker {
+    0% { opacity: 1; }
+    2% { opacity: 0.5; }
+    4% { opacity: 1; }
+    6% { opacity: 0.8; }
+    8% { opacity: 1; }
+    80% { opacity: 1; }
+    82% { opacity: 0.4; }
+    84% { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+@keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-5px, 5px); }
+    40% { transform: translate(5px, -5px); }
+    60% { transform: translate(-5px, -5px); }
+    80% { transform: translate(5px, 5px); }
+    100% { transform: translate(0); }
+}
+.glitch-layers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+.glitch-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    animation: glitch 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+}
+.glitch-layer:nth-child(1) {
+    opacity: 0.1;
+    color: #f0f;
+}
+.glitch-layer:nth-child(2) {
+    opacity: 0.1;
+    color: #0ff;
+    animation-direction: reverse;
+}
+.glitch-layer:nth-child(3) {
+    opacity: 0.1;
+    color: #ff0;
+    animation-duration: 1.5s;
+}
