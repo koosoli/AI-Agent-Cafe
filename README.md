@@ -12,7 +12,7 @@ Welcome to the AI Agent Cafe, a dynamic and interactive web application where yo
 
 This entire project is **Vibe Coded** by Olivier Koos. The code, pixel art, sound effects, and music are all generated with the assistance AI tools, showcasing a modern and rapid approach to application development.
 
-[![AI Agent Cafe Demo](./public/giphy.gif)](https://www.youtube.com/watch?v=T6NCCVWE_MI)
+[![AI Agent Cafe Demo](./public/giphy2.gif)](https://www.youtube.com/watch?v=T6NCCVWE_MI)
 
 [Click here for the YouTube presentation](https://www.youtube.com/watch?v=T6NCCVWE_MI)
 
