@@ -12,6 +12,8 @@ import { useRelationshipManager } from './useRelationshipManager.ts';
 import { useAppStore } from './useAppContext.ts';
 import { shallow } from 'zustand/shallow';
 import { findAllMentionedAgents } from '../services/chatUtils.ts';
+import { createCoachDebrief, createSystemDebrief } from '../services/learningGuidanceService.ts';
+import { extractMasterySignal } from '../services/masteryService.ts';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -42,6 +44,37 @@ const splitIntoSentences = (text: string): string[] => {
   }
 
   return mergedChunks.filter(chunk => chunk.length > 0);
+};
+
+const getSetupHelpMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  if (
+    message.includes('api key missing') ||
+    message.includes('api key is not configured') ||
+    message.includes('not configured in settings')
+  ) {
+    return "I can't respond yet. Did you add an API key in Settings? Open Settings in the top right, paste a Gemini or OpenAI API key, save, and then talk to me again.";
+  }
+
+  if (
+    message.includes('401') ||
+    message.includes('unauthorized') ||
+    message.includes('incorrect api key') ||
+    message.includes('invalid api key')
+  ) {
+    return "I still can't respond. Your API key looks missing or invalid. Open Settings in the top right, check the key for the selected provider, save, and try again.";
+  }
+
+  if (message.includes('local ai server url is not configured') || message.includes('custom server url is not configured')) {
+    return "I can't reach the model yet. Open Settings in the top right and add the server URL for your selected provider, or switch to Gemini/OpenAI and enter an API key.";
+  }
+
+  if (message.includes('no model selected for this agent')) {
+    return "This agent is missing a model. Open Settings, edit the agent, choose a model for its provider, save, and then try again.";
+  }
+
+  return "I hit a setup problem. Open Settings in the top right and check the provider, model, and API key, then try again.";
 };
 
 interface ConversationManagerOptions {
@@ -446,13 +479,29 @@ export const useConversationManager = ({ onAgentRelativeMove, onRoomMastered, on
             }
         }
         
-        if (responseText.includes('_PLAYER_WINS_CHALLENGE_')) {
-            responseText = responseText.replace('_PLAYER_WINS_CHALLENGE_', '').trim();
+        const masterySignal = extractMasterySignal(responseText);
+        responseText = masterySignal.cleanedText;
+        if (masterySignal.mastered) {
             if (player && player.roomId !== 'outside') onRoomMastered?.(player.roomId);
+            if (playerRoomId && masterySignal.feedback) {
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        playerRoomId,
+                        'mastered',
+                        `${ROOMS[playerRoomId]?.name || 'Room'} Review`,
+                        masterySignal.feedback,
+                        masterySignal.nextStep || 'Open the tracker, review the lesson, and move on to a new room.',
+                    ),
+                });
+            }
         }
         
         responseMsg = { id: messageId, agentId: agent.id, text: responseText, timestamp: Date.now(), groundingChunks: responsePayload.groundingChunks, usage: responsePayload.usage };
         addMessage(responseMsg);
+
+        if (playerRoomId && playerRoomId !== 'outside' && agent.isModerator && !masterySignal.mastered) {
+            setUiState({ learningDebrief: createCoachDebrief(stateRef.current, playerRoomId, agent.name, responseText) });
+        }
         
         if (lastMessage && game.agentAutonomyEnabled) updateRelationship(lastMessage.agentId, agent.id, lastMessage, responseMsg);
 
@@ -462,7 +511,12 @@ export const useConversationManager = ({ onAgentRelativeMove, onRoomMastered, on
         await playSubtitles(responseMsg);
       } catch (error) {
         console.error(`Error getting response for ${agent.name}:`, error);
-        responseMsg = { id: `${Date.now()}-error`, agentId: agent.id, text: `(I'm having trouble thinking right now.)`, timestamp: Date.now() };
+        responseMsg = {
+          id: `${Date.now()}-error`,
+          agentId: agent.id,
+          text: getSetupHelpMessage(error),
+          timestamp: Date.now()
+        };
         addMessage(responseMsg);
         await playSubtitles(responseMsg);
       } finally {

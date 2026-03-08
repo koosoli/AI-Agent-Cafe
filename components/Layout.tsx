@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
 import World from './World.tsx';
+import ActiveQuestPanel from './ActiveQuestPanel.tsx';
 import { AppHeader } from './AppHeader.tsx';
 import AppFooter from './AppFooter.tsx';
 import ErrorBoundary from './ErrorBoundary.tsx';
@@ -21,6 +22,7 @@ import { ROOMS } from '../data/rooms.ts';
 import { INTERACTIVE_OBJECTS } from '../data/layout.ts';
 import type { Agent, WorldImageArtifact, Artifact } from '../types.ts';
 import { MemoryType } from '../types.ts';
+import { createMasteryDebrief } from '../services/learningGuidanceService.ts';
 
 const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
   const {
@@ -144,11 +146,12 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
         audioService.playVictorySound();
         const newMasteredRooms = [...currentState.game.masteredRooms, roomId];
         setGameState({ masteredRooms: newMasteredRooms, victoryRoomId: roomId });
+        setUiState({ learningDebrief: createMasteryDebrief(roomId) });
         setTimeout(() => setGameState({ victoryRoomId: null }), 5000);
         const achievementMemory = `The user has demonstrated great skill and mastered the ${ROOMS[roomId]?.name || 'a room'}!`;
         ['TUTOR1', 'AK'].forEach(id => addMemory(id, { type: MemoryType.SEMANTIC, description: achievementMemory, fixedImportance: 8 }));
     }
-  }, [setGameState, addMemory]);
+  }, [setGameState, setUiState, addMemory]);
 
   const handleStartFollowing = useCallback((agentId: string) => {
     setAgents(useAppStore.getState().agents.map(a => a.id === agentId ? { ...a, followingAgentId: USER_AGENT.id, isWaiting: false } : a));
@@ -357,6 +360,7 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
         onToggleFullscreen={() => setUiState({ isFullscreen: !ui.isFullscreen })}
       />
       <main className="w-full flex-grow flex items-center justify-center px-2 md:px-4 pb-2 md:pb-4 overflow-hidden relative">
+        <ActiveQuestPanel roomId={playerRoomId} />
         <ErrorBoundary>
             <World
               ref={viewportRef}

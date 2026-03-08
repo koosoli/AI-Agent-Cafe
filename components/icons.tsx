@@ -60,8 +60,8 @@ export const PlusIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-export const StarIcon = ({ className, filled = false }: { className?: string, filled?: boolean }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+export const StarIcon = ({ className, filled = false, ...props }: React.SVGProps<SVGSVGElement> & { filled?: boolean }) => (
+    <svg {...props} className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
 );
@@ -174,5 +174,12 @@ export const TaskAltIcon = ({ className }: { className?: string }) => (
 export const MenuIcon = ({ className }: { className?: string }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
     <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
+  </svg>
+);
+
+export const InfoIcon = ({ className }: { className?: string }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M11 10h2v8h-2zm0-4h2v2h-2z"/>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
   </svg>
 );

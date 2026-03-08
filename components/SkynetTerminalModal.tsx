@@ -8,6 +8,8 @@ import { USER_AGENT } from '../constants.ts';
 import { CloseIcon, SendIcon } from './icons.tsx';
 import * as audioService from '../services/audioService.ts';
 import { shallow } from 'zustand/shallow';
+import { createCoachDebrief, createSystemDebrief } from '../services/learningGuidanceService.ts';
+import { extractMasterySignal } from '../services/masteryService.ts';
 
 interface SkynetTerminalModalProps {
     isOpen: boolean;
@@ -42,6 +44,7 @@ const SkynetTerminalModal = ({ isOpen, initialPrompt, onClose, onRoomMastered, o
         services: s.services,
         game: s.game
     }), shallow);
+    const setUiState = useAppStore(s => s.setUiState);
     
     const [lines, setLines] = useState<Line[]>([]);
     const [userInput, setUserInput] = useState('');
@@ -117,12 +120,22 @@ const SkynetTerminalModal = ({ isOpen, initialPrompt, onClose, onRoomMastered, o
             const userContent = `Current conversation state:\n${historyText}\n\nUSER's new statement to respond to: "${messageText}"`;
             
             const response = await getRawResponseForModel(agent.llm.model, agent.llm.provider, systemInstruction, userContent, services);
-            let fullResponse = response.text;
-    
-            const WIN_TOKEN = '_PLAYER_WINS_CHALLENGE_';
-            if (fullResponse.includes(WIN_TOKEN)) {
-                fullResponse = fullResponse.replace(WIN_TOKEN, '').trim();
+            const masterySignal = extractMasterySignal(response.text);
+            let fullResponse = masterySignal.cleanedText;
+
+            if (masterySignal.mastered) {
                 onRoomMastered('lair');
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        'lair',
+                        'mastered',
+                        'Skynet Re-evaluated',
+                        masterySignal.feedback || 'Your argument was strong enough to force a logical re-evaluation.',
+                        masterySignal.nextStep || 'Review the logic that worked, then challenge yourself in another room.',
+                    ),
+                });
+            } else {
+                setUiState({ learningDebrief: createCoachDebrief({ agents, messages: conversationHistoryRef.current, game }, 'lair', 'Skynet', fullResponse) });
             }
     
             const skynetMessage: Message = { 

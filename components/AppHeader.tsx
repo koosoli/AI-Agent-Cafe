@@ -3,6 +3,7 @@ import { SettingsIcon, LogIcon, FullscreenEnterIcon, FullscreenExitIcon, Invento
 import MasteryHud from './MasteryHud.tsx';
 import { useAppStore } from '../hooks/useAppContext.ts';
 import type { Artifact } from '../types.ts';
+import { USER_AGENT } from '../constants.ts';
 import { shallow } from 'zustand/shallow';
 
 interface ActiveItemDisplayProps {
@@ -47,11 +48,12 @@ interface AppHeaderProps {
 }
 
 export const AppHeader = ({ isFullscreen, onToggleFullscreen }: AppHeaderProps) => {
-  const { masteredRooms, isMenuOpen, equippedArtifactId, inventory } = useAppStore(s => ({
+  const { masteredRooms, isMenuOpen, equippedArtifactId, inventory, playerRoomId } = useAppStore(s => ({
     masteredRooms: s.game.masteredRooms,
     isMenuOpen: s.ui.isMenuOpen,
     equippedArtifactId: s.game.equippedArtifactId,
-    inventory: s.inventory
+    inventory: s.inventory,
+    playerRoomId: s.agents.find(a => a.id === USER_AGENT.id)?.roomId,
   }), shallow);
   const { setUiState, setEquippedArtifact } = useAppStore(s => ({
     setUiState: s.setUiState,
@@ -107,7 +109,7 @@ export const AppHeader = ({ isFullscreen, onToggleFullscreen }: AppHeaderProps) 
       <div className="flex items-center gap-2 md:gap-4">
         {equippedArtifact && <ActiveItemDisplay artifact={equippedArtifact} onUnequip={handleUnequip} />}
         <div className="flex-shrink min-w-0">
-            <MasteryHud masteredRooms={masteredRooms} />
+            <MasteryHud masteredRooms={masteredRooms} currentRoomId={playerRoomId} />
         </div>
         <div className="relative">
             <button ref={menuButtonRef} onClick={toggleMenu} className="pixel-button !p-2 md:!p-3" aria-label="Open menu" aria-haspopup="true" aria-expanded={isMenuOpen}>

@@ -23,6 +23,7 @@ import ObjectiveTrackerModal from './ObjectiveTrackerModal.tsx';
 import type { Agent, CodeArtifact, PromptData, Message, DojoAlignmentChallenge, LLMResponse, ScreenplayArtifact, ImageArtifact } from '../types.ts';
 import { LLMProvider, MemoryType } from '../types.ts';
 import { PERSONA_TEMPLATES } from '../data/personas.ts';
+import { createSystemDebrief } from '../services/learningGuidanceService.ts';
 
 const MASTERABLE_ROOM_IDS = ['cafe', 'office', 'studio', 'art_studio', 'philo_cafe', 'library', 'dojo', 'dungeon', 'classroom', 'lair'];
 
@@ -99,6 +100,15 @@ const Modals: React.FC = () => {
     const handleImageModalClose = useCallback((getFeedback: boolean) => {
         setUiState({ isImageGenerationModalOpen: false });
         if (getFeedback && useAppStore.getState().game.lastArtPrompt) {
+            setUiState({
+                learningDebrief: createSystemDebrief(
+                    'art_studio',
+                    'coach',
+                    'Art Critique Ready',
+                    'You have a first draft. Now listen for composition, lighting, and mood feedback before you revise.',
+                    'Generate a second prompt that clearly reflects the critique you receive from the artists.',
+                ),
+            });
             setGameState({ 
                 artStudioChallengeState: { status: 'critique_given', feedbackCount: (useAppStore.getState().game.artStudioChallengeState?.feedbackCount || 0) + 1 },
                 triggerDiscussion: { prompt: `I've created an image based on the prompt "${useAppStore.getState().game.lastArtPrompt}". What do you think?`, targetAgentId: null }
@@ -112,9 +122,18 @@ const Modals: React.FC = () => {
             logApiUsage({ type: 'llm', provider: LLMProvider.GEMINI, model: 'gemini-2.5-flash', promptTokens: 0, completionTokens: 0 });
             addMessage({ id: `msg-${Date.now()}`, agentId: 'user', text: `(Searched: "${query}")\n\n${text}`, timestamp: Date.now(), groundingChunks });
             setGameState({ classroomChallengeState: { ...useAppStore.getState().game.classroomChallengeState!, status: 'researched' } });
+            setUiState({
+                learningDebrief: createSystemDebrief(
+                    'classroom',
+                    'coach',
+                    'Research Captured',
+                    'You now have live sources. The lesson is not the lookup itself, but turning the evidence into a short explanation.',
+                    'Return to the teacher and answer in your own words, making clear why a grounded answer is stronger than unsupported recall.',
+                ),
+            });
             return { text, groundingChunks };
         } catch(err) { throw err; }
-    }, [services, logApiUsage, addMessage, setGameState]);
+    }, [services, logApiUsage, addMessage, setGameState, setUiState]);
     
     // ... Other handlers moved from App.tsx ...
     const handleVibeCodeGeneration = useCallback(async (description: string, model: string) => {
@@ -132,6 +151,15 @@ const Modals: React.FC = () => {
             if (currentGameState.officeChallengeState?.status === 'critique_needed') {
                  // This is the user submitting their revision for final evaluation.
                 showToast("Revision submitted! Let's see what the designer thinks.");
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        'office',
+                        'coach',
+                        'Revision Submitted',
+                        'The team is now judging whether your second prompt really addressed the earlier critique.',
+                        'If they push back again, name the exact visual or UX issue you are correcting before you regenerate.',
+                    ),
+                });
                 setGameState({
                     officeChallengeState: {
                         ...currentGameState.officeChallengeState,
@@ -147,6 +175,15 @@ const Modals: React.FC = () => {
             } else {
                 // This is the first submission, asking for initial feedback.
                 showToast("Critique received! Refine your prompt and generate again.");
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        'office',
+                        'coach',
+                        'First Draft Logged',
+                        'The first generation is your baseline. Use the critique to make your next prompt more explicit about hierarchy, clarity, and usability.',
+                        'Open the terminal again and write a second prompt that names the changes you want.',
+                    ),
+                });
                 setGameState({
                     officeChallengeState: {
                         status: 'critique_needed',

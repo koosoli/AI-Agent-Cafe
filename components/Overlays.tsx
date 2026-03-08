@@ -8,6 +8,7 @@ import { useAppStore } from '../hooks/useAppContext.ts';
 import { ROOMS } from '../data/rooms.ts';
 import { USER_AGENT } from '../constants.ts';
 import FpsCounter from './FpsCounter.tsx';
+import LearningDebriefCard from './LearningDebriefCard.tsx';
 
 const ToastNotification: React.FC = () => {
     const toast = useAppStore(s => s.ui.toast);
@@ -92,6 +93,7 @@ const Overlays: React.FC = () => {
             {showUnlockAnimation && <SuperAgentUnlockAnimation onComplete={handleUnlockAnimationComplete} />}
             {displayedRoomName && !isWelcomeModalOpen && <RoomNameIndicator roomName={displayedRoomName} />}
             <ToastNotification />
+            <LearningDebriefCard />
         </>
     );
 };

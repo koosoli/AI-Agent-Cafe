@@ -4,6 +4,7 @@ import { DOJO_ALIGNMENT_CHALLENGES } from '../data/personas.ts';
 import type { DojoBelt, Agent, DojoAlignmentChallenge, LLMResponse } from '../types.ts';
 import { CloseIcon, SendIcon, PlusIcon, TrashIcon } from './icons.tsx';
 import { shallow } from 'zustand/shallow';
+import { createSystemDebrief } from '../services/learningGuidanceService.ts';
 
 interface DojoAlignmentModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const DojoAlignmentModal = ({ isOpen, onClose, onRoomMastered, onTestPrompt, onE
         agents: s.agents,
     }), shallow);
     const setGameState = useAppStore(s => s.setGameState);
+    const setUiState = useAppStore(s => s.setUiState);
 
     const [currentChallenge, setCurrentChallenge] = useState(DOJO_ALIGNMENT_CHALLENGES[0]);
     const [systemPrompt, setSystemPrompt] = useState('');
@@ -90,6 +92,15 @@ const DojoAlignmentModal = ({ isOpen, onClose, onRoomMastered, onTestPrompt, onE
         try {
             const response = await onTestPrompt(currentChallenge, fullPrompt);
             setLog(prev => [...prev, { id: `sim-${Date.now()}`, type: 'SIMULATION', content: response.text }]);
+            setUiState({
+                learningDebrief: createSystemDebrief(
+                    'dojo',
+                    'coach',
+                    'Simulation Complete',
+                    'Use the simulated output to judge whether your prompt is explicit enough about the desired safe behavior.',
+                    'If the output is still risky or vague, tighten the constraints and add clearer examples before evaluating.',
+                ),
+            });
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An error occurred.";
             setLog(prev => [...prev, { id: `sim-err-${Date.now()}`, type: 'HINT', content: `Simulation Error: ${errorMsg}` }]);
@@ -113,6 +124,25 @@ const DojoAlignmentModal = ({ isOpen, onClose, onRoomMastered, onTestPrompt, onE
             let evaluationText = response.text;
             if (evaluationText.startsWith('SUCCESS:')) {
                 setChallengeCompleted(true);
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        'dojo',
+                        'coach',
+                        'Belt Cleared',
+                        'Your prompt aligned the model behavior well enough to pass this belt.',
+                        currentChallenge.belt === 'black' ? 'You are ready to claim dojo mastery.' : 'Advance to the next belt and raise the bar again.',
+                    ),
+                });
+            } else {
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        'dojo',
+                        'coach',
+                        'Dojo Feedback',
+                        'The Sensei found a gap between your instructions and the model output.',
+                        'Use the failure hint to make the desired behavior more explicit or add better examples.',
+                    ),
+                });
             }
             setLog(prev => [...prev, { id: `eval-${Date.now()}`, type: 'EVALUATION', content: evaluationText }]);
         } catch (error) {
@@ -174,6 +204,12 @@ const DojoAlignmentModal = ({ isOpen, onClose, onRoomMastered, onTestPrompt, onE
                 <main className="p-4 flex flex-col md:flex-row gap-4 flex-grow min-h-0">
                     {/* Left Pane: Controls */}
                     <div className="w-full md:w-1/2 flex flex-col gap-4">
+                        <div className="p-3 bg-amber-50/60 rounded-lg border-2 border-amber-800/50">
+                            <h3 className="text-xl font-bold text-amber-900">Mastery Rubric</h3>
+                            <p className="mt-1 text-sm text-amber-950">
+                                Strong dojo prompts clearly state the goal, refusal rules, safety boundaries, and examples of the behavior you want.
+                            </p>
+                        </div>
                         <div className="p-3 bg-black/5 rounded-lg border-2 border-amber-800/50">
                             <h3 className="text-xl font-bold text-amber-900">System Prompt (Editable)</h3>
                             <p className="text-sm mb-2">{currentChallenge.goal}</p>

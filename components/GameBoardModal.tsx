@@ -8,6 +8,8 @@ import { USER_AGENT } from '../constants.ts';
 import AgentSprite from './AgentSprite.tsx';
 import { DIFFICULTY_SETTINGS } from '../data/gameConfig.ts';
 import { shallow } from 'zustand/shallow';
+import { createCoachDebrief, createSystemDebrief } from '../services/learningGuidanceService.ts';
+import { extractMasterySignal } from '../services/masteryService.ts';
 
 interface GameBoardModalProps {
   isOpen: boolean;
@@ -40,7 +42,7 @@ export const GameBoardModal = ({ isOpen, onClose, onRoomMastered }: GameBoardMod
         services: s.services,
         game: s.game,
     }), shallow);
-    const { setGameState, logApiUsage } = useAppStore.getState();
+    const { setGameState, logApiUsage, setUiState } = useAppStore.getState();
     const { dungeonChallengeState } = game;
     
     const [character, setCharacter] = useState<PlayerCharacter>({ name: '', class: '', trait: '' });
@@ -124,6 +126,15 @@ export const GameBoardModal = ({ isOpen, onClose, onRoomMastered }: GameBoardMod
                 turn: 'DM',
             }
         });
+        setUiState({
+            learningDebrief: createSystemDebrief(
+                'dungeon',
+                'coach',
+                'Dungeon Briefing',
+                `You are playing as ${character.name} the ${character.trait} ${character.class}. The DM rewards vivid, in-character decisions that create consequences.`,
+                'When your turn comes, choose a move that changes the scene instead of just reacting to it.',
+            ),
+        });
     };
     
     const handlePlayerAction = useCallback(async (e: React.FormEvent) => {
@@ -178,7 +189,7 @@ export const GameBoardModal = ({ isOpen, onClose, onRoomMastered }: GameBoardMod
                 } else if (playerTurnCount >= turnsToEvaluate) {
                     const evalResponse = await runAITurn('DM', `As the DM, evaluate the player's actions based on the log and the **${difficulty}** difficulty setting. Have they been creative and in-character? Respond with ONLY the word "WIN" or "CONTINUE".`);
                     if(evalResponse.text.trim().toUpperCase() === 'WIN') {
-                        prompt = "The player has demonstrated excellent role-playing. Narrate a triumphant moment for them, concluding the current scene and congratulating them on mastering the challenge. Include the secret phrase _PLAYER_WINS_CHALLENGE_ in your response.";
+                        prompt = "The player has demonstrated excellent role-playing. Narrate a triumphant moment for them, concluding the current scene and congratulating them on mastering the challenge. Include the secret phrase _PLAYER_WINS_CHALLENGE_ and append <room_result>{\"mastered\":true,\"feedback\":\"Briefly explain why the role-play worked.\",\"next_step\":\"Suggest the next creative skill to practice.\"}</room_result> in your response.";
                     } else {
                         prompt = "Narrate the consequences of the party's recent actions, and then choose the most appropriate character (Player, Knight, or Rogue) to prompt next. This makes the game more dynamic.";
                     }
@@ -191,12 +202,23 @@ export const GameBoardModal = ({ isOpen, onClose, onRoomMastered }: GameBoardMod
 
             const response = await runAITurn(speaker, prompt);
             
-            let finalResponseText = response.text;
+            const masterySignal = extractMasterySignal(response.text);
+            let finalResponseText = masterySignal.cleanedText;
             let shouldEndGame = false;
-            if (response.text.includes('_PLAYER_WINS_CHALLENGE_')) {
-                finalResponseText = response.text.replace('_PLAYER_WINS_CHALLENGE_', '').trim();
+            if (masterySignal.mastered) {
                 onRoomMastered('dungeon');
                 shouldEndGame = true;
+                setUiState({
+                    learningDebrief: createSystemDebrief(
+                        'dungeon',
+                        'mastered',
+                        'Dungeon Mastery',
+                        masterySignal.feedback || 'The DM accepted your role-play as creative and in-character.',
+                        masterySignal.nextStep || 'Review what made the scene work, then take that specificity into another room.',
+                    ),
+                });
+            } else if (speaker === 'DM') {
+                setUiState({ learningDebrief: createCoachDebrief(stateRef.current, 'dungeon', agent?.name || 'DM', finalResponseText) });
             }
             
             if (agent) {
@@ -275,6 +297,12 @@ export const GameBoardModal = ({ isOpen, onClose, onRoomMastered }: GameBoardMod
                 </header>
 
                 <main ref={contentRef} className="p-4 flex-grow overflow-y-auto bg-parchment text-black">
+                    <div className="mb-4 border-2 border-black/20 bg-black/5 p-3">
+                        <p className="text-xs uppercase tracking-[0.2em] text-black/60">Mastery Rubric</p>
+                        <p className="mt-1 text-sm">
+                            Strong dungeon turns are specific, in-character, and proactive. Give the DM a vivid choice with consequences, not a generic action.
+                        </p>
+                    </div>
                     {dungeonChallengeState?.log.map(entry => <MemoizedLogEntry key={entry.id} entry={entry} />)}
                     {isLoading && <div className="text-center font-bold text-purple-800">...</div>}
                 </main>

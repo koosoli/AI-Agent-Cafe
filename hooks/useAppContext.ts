@@ -40,7 +40,7 @@ const getMinimalInitialState = (): AppState => ({
         isSocialGraphModalOpen: false, isMenuOpen: false, isNearArtEasel: false, isNearGroundingComputer: false,
         isNearVibeComputer: false, isNearScreenplayTerminal: false, isNearModelComparisonTerminal: false,
         isNearGameBoard: false, isInspectorMode: false, inspectorData: null, isWorldArtifactModalOpen: false, worldArtifactToInspect: null,
-        isFullscreen: false, displayedRoomName: null, showFps: false, toast: null,
+        isFullscreen: false, displayedRoomName: null, showFps: false, toast: null, learningDebrief: null,
     },
     game: {
         sessionId: `session-${Date.now()}`, masteredRooms: [], victoryRoomId: null, allRoomsMastered: false,

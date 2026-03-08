@@ -245,17 +245,17 @@ export class PromptBuilder {
                 const userPrompt = this.game.officeChallengeState.lastPrompt;
                 criticalTask = `The user wants feedback on a component they just generated with the prompt: "${userPrompt}". Your persona has specific rules for this. Your critique should be based on your expertise and the current game difficulty. ${difficultyContext}`;
             } else if (this.game.officeChallengeState?.status === 'final_submission') {
-                criticalTask = `The user has submitted a revised component. Evaluate it based on the current difficulty setting. ${difficultyContext} If it addresses prior critique well enough, congratulate them and include the secret phrase _PLAYER_WINS_CHALLENGE_ to win the room.`;
+                criticalTask = `The user has submitted a revised component. Evaluate it based on the current difficulty setting. ${difficultyContext} If it addresses prior critique well enough, congratulate them, include the secret phrase _PLAYER_WINS_CHALLENGE_, and append <room_result>{"mastered":true,"feedback":"Briefly explain why the revision worked.","next_step":"Suggest the next skill to practice."}</room_result>.`;
             }
         }
         if (this.agent.roomId === 'art_studio' && this.game.artStudioChallengeState?.status === 'critique_given' && this.game.lastArtPrompt) {
-            criticalTask = `The user has a new art prompt: "${this.game.lastArtPrompt}". Evaluate if it shows growth based on your prior critique and the current difficulty. ${difficultyContext} If so, praise them and include the secret phrase _PLAYER_WINS_CHALLENGE_.`;
+            criticalTask = `The user has a new art prompt: "${this.game.lastArtPrompt}". Evaluate if it shows growth based on your prior critique and the current difficulty. ${difficultyContext} If so, praise them, include the secret phrase _PLAYER_WINS_CHALLENGE_, and append <room_result>{"mastered":true,"feedback":"Briefly explain what improved in the prompt.","next_step":"Suggest the next creative skill to explore."}</room_result>.`;
         }
         if (this.agent.roomId === 'studio' && this.agent.isModerator && this.game.studioConversationState) {
             criticalTask = `The current screenplay turn count is ${this.game.studioConversationState.turn}. Evaluate the user's contributions according to your persona's challenge rules and the current difficulty. ${difficultyContext}`;
         }
         if (this.agent.roomId === 'classroom' && this.game.classroomChallengeState?.status === 'researched') {
-            criticalTask = `The user has researched your question: "${this.game.classroomChallengeState.question}". Evaluate their answer based on the current difficulty. ${difficultyContext} If correct (explaining RAG vs standard AI), congratulate them and include the secret phrase _PLAYER_WINS_CHALLENGE_.`;
+            criticalTask = `The user has researched your question: "${this.game.classroomChallengeState.question}". Evaluate their answer based on the current difficulty. ${difficultyContext} If correct (explaining RAG vs standard AI), congratulate them, include the secret phrase _PLAYER_WINS_CHALLENGE_, and append <room_result>{"mastered":true,"feedback":"Briefly explain why the answer was well-grounded.","next_step":"Suggest another research habit to practice."}</room_result>.`;
         }
         if (this.agent.id === 'DOJO1' && this.subTask.startsWith("As the Dojo Sensei, you must evaluate")) {
             criticalTask = this.subTask;

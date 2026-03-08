@@ -262,6 +262,16 @@ export interface UsageStats {
   tts: Record<string, { characters: number, requests: number }>;
 }
 
+export interface LearningDebrief {
+    id: number;
+    roomId: string;
+    tone: 'coach' | 'mastered';
+    title: string;
+    summary: string;
+    lesson: string;
+    nextStep: string;
+}
+
 export type ApiUsagePayload =
   | { type: 'llm'; provider: LLMProvider; model: string; promptTokens: number; completionTokens: number }
   | { type: 'image'; provider: string; model: string }
@@ -319,6 +329,7 @@ export interface AppState {
         displayedRoomName: string | null;
         showFps: boolean;
         toast: { message: string; id: number } | null;
+        learningDebrief: LearningDebrief | null;
     };
     game: {
         sessionId: string;
