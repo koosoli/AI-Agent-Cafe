@@ -5,7 +5,7 @@ import { CloseIcon, ExportIcon, ImportIcon, VoiceIcon, TrashIcon, StarIcon, Insp
 import { testOpenAICompatible, fetchOpenRouterModels, fetchOpenAIModels, testLocalAI, testGeminiApiKey, testCustomAI } from '../services/apiService.ts';
 import * as speechService from '../services/speechService.ts';
 import type { ElevenLabsVoice, OpenAIVoice, MicrosoftVoice } from '../services/speechService.ts';
-import { MUSIC_TRACKS } from '../services/audioService.ts';
+import { getMusicTrackLabel } from '../services/audioService.ts';
 import { USER_AGENT } from '../constants.ts';
 import { PERSONA_TEMPLATES } from '../data/personas.ts';
 import { useAppStore } from '../hooks/useAppContext.ts';
@@ -968,7 +968,7 @@ const SettingsModal = ({ isOpen, onClose, onDebugMasterAll, onResetGame }: Setti
     const audioTabProps = {
         localMusicMuted, setLocalMusicMuted, localMusicVolume, setLocalMusicVolume, localSfxMuted, setLocalSfxMuted, localSfxVolume, setLocalSfxVolume,
         localTtsEnabled, setLocalTtsEnabled, localTtsVolume, setLocalTtsVolume, localSttProvider, setLocalSttProvider,
-        currentTrackName: MUSIC_TRACKS[useAppStore.getState().audio.currentTrack as keyof typeof MUSIC_TRACKS] || 'None',
+        currentTrackName: getMusicTrackLabel(useAppStore.getState().audio.currentTrack),
         openAiTest, elevenLabsTest, microsoftTest, elevenLabsVoices, openAIVoices: speechService.getOpenAIVoices(),
         handleAutoAssignVoices: (type: 'openai' | 'elevenlabs' | 'microsoft' | 'all') => {
             const available: Record<string, any[]> = {};

@@ -6,6 +6,7 @@ import { PromptBuilder } from './promptBuilderService.ts';
 import { moveTool } from '../tools.ts';
 import * as memoryService from './memoryService.ts';
 import { makeApiCall } from './apiService.ts';
+import { DEFAULT_OPENROUTER_MODELS } from './apiService.ts';
 
 // --- Type Definitions ---
 export type ApiKeys = {
@@ -23,6 +24,82 @@ type LLMCallResponse = {
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const DEFAULT_OPENAI_MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'];
+
+function hasConfiguredProvider(provider: LLMProvider, services: AppState['services']): boolean {
+    switch (provider) {
+        case LLMProviderEnum.GEMINI:
+            return Boolean(services.geminiApiKey || process.env.API_KEY);
+        case LLMProviderEnum.OPENAI:
+            return Boolean(services.openAiApiKey);
+        case LLMProviderEnum.OPENROUTER:
+            return Boolean(services.openRouterApiKey);
+        case LLMProviderEnum.LOCAL:
+            return Boolean(services.localApiUrl);
+        case LLMProviderEnum.CUSTOM:
+            return Boolean(services.customApiUrl);
+        default:
+            return false;
+    }
+}
+
+function resolveFallbackModel(provider: LLMProvider, services: AppState['services'], currentModel?: string): string {
+    switch (provider) {
+        case LLMProviderEnum.GEMINI:
+            return GEMINI_MODELS.includes(currentModel || '') ? (currentModel as string) : 'gemini-2.5-flash';
+        case LLMProviderEnum.OPENAI:
+            return currentModel || services.openAIModels[0] || DEFAULT_OPENAI_MODELS[0];
+        case LLMProviderEnum.OPENROUTER:
+            return currentModel || services.openRouterModels[0] || DEFAULT_OPENROUTER_MODELS[0];
+        case LLMProviderEnum.LOCAL:
+            return currentModel || services.localAIModels[0] || '';
+        case LLMProviderEnum.CUSTOM:
+            return currentModel || services.customAIModels[0] || '';
+        default:
+            return currentModel || '';
+    }
+}
+
+function resolveEffectiveProviderConfig(
+    agent: Agent,
+    services: AppState['services']
+): { provider: LLMProvider; model: string; usedFallback: boolean } {
+    const providerOrder: LLMProvider[] = [
+        agent.llm.provider,
+        LLMProviderEnum.GEMINI,
+        LLMProviderEnum.OPENROUTER,
+        LLMProviderEnum.OPENAI,
+        LLMProviderEnum.LOCAL,
+        LLMProviderEnum.CUSTOM,
+    ].filter((provider, index, list) => list.indexOf(provider) === index);
+
+    for (const provider of providerOrder) {
+        if (!hasConfiguredProvider(provider, services)) {
+            continue;
+        }
+
+        const model = resolveFallbackModel(provider, services, provider === agent.llm.provider ? agent.llm.model : undefined);
+        if (model) {
+            return {
+                provider,
+                model,
+                usedFallback: provider !== agent.llm.provider || model !== agent.llm.model,
+            };
+        }
+    }
+
+    return {
+        provider: agent.llm.provider,
+        model: resolveFallbackModel(agent.llm.provider, services, agent.llm.model),
+        usedFallback: false,
+    };
+}
+
+export const llmServiceTestUtils = {
+    hasConfiguredProvider,
+    resolveFallbackModel,
+    resolveEffectiveProviderConfig,
+};
 
 // --- Helper Functions ---
 
@@ -297,6 +374,7 @@ export async function getAgentResponse(
         movementEnabled,
         state.userProfile,
         state.game,
+        state.services,
         subTask,
         retrievedMemories,
         state.inventory,
@@ -306,25 +384,12 @@ export async function getAgentResponse(
     
     let userContentForApi: string | FormattedHistory;
     let userPromptForInspector: string;
-    let effectiveModel = agent.llm.model;
-    let effectiveProvider = agent.llm.provider;
+    const { provider: effectiveProvider, model: effectiveModel, usedFallback } = resolveEffectiveProviderConfig(agent, state.services);
 
-    // Fallback for tutorial agents to ensure a smooth start if other keys aren't set.
-    const isTutorialAgent = agent.id === 'TUTOR1' || agent.id === 'AK';
-    const noApiKeyForCurrentProvider = (
-        (agent.llm.provider === LLMProviderEnum.OPENAI && !state.services.openAiApiKey) ||
-        (agent.llm.provider === LLMProviderEnum.OPENROUTER && !state.services.openRouterApiKey) ||
-        (agent.llm.provider === LLMProviderEnum.LOCAL && !state.services.localApiUrl) ||
-        (agent.llm.provider === LLMProviderEnum.CUSTOM && !state.services.customApiUrl)
-    );
-
-    if (isTutorialAgent && noApiKeyForCurrentProvider && (state.services.geminiApiKey || process.env.API_KEY)) {
-        console.warn(`Tutorial agent "${agent.name}" has no key for ${agent.llm.provider}. Falling back to Gemini for stability.`);
-        effectiveProvider = LLMProviderEnum.GEMINI;
-        effectiveModel = 'gemini-2.5-flash';
+    if (usedFallback) {
+        console.warn(`Agent "${agent.name}" is falling back from ${agent.llm.provider}/${agent.llm.model || 'unset'} to ${effectiveProvider}/${effectiveModel || 'unset'}.`);
     } else if (agent.llm.provider === LLMProviderEnum.GEMINI && !GEMINI_MODELS.includes(effectiveModel)) {
         console.warn(`Agent "${agent.name}" selected invalid model "${effectiveModel}". The application is enforcing 'gemini-2.5-flash' for stability.`);
-        effectiveModel = 'gemini-2.5-flash';
     }
 
     if (isDirectChat) {

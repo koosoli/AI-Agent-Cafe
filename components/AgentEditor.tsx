@@ -7,6 +7,7 @@ import { TrashIcon, StarIcon, InspectIcon } from './icons.tsx';
 import { GEMINI_MODELS } from '../constants.ts';
 import { PERSONA_TEMPLATES } from '../data/personas.ts';
 import type { ElevenLabsVoice, OpenAIVoice, MicrosoftVoice } from '../services/speechService.ts';
+import { DEFAULT_OPENROUTER_MODELS } from '../services/apiService.ts';
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 type OpenAITestState = { status: TestStatus; message: string; services: { llm: boolean; tts: boolean } };
@@ -66,7 +67,7 @@ const AgentEditor = ({
     }, [openAIModels, modelFilter]);
 
     const availableOpenRouterModels = useMemo(() => {
-        const source = openRouterModels.length > 0 ? openRouterModels : ['openai/gpt-4o', 'mistralai/mistral-7b-instruct:free'];
+        const source = openRouterModels.length > 0 ? openRouterModels : DEFAULT_OPENROUTER_MODELS;
         if (!modelFilter) return source;
         return source.filter(m => m.toLowerCase().includes(modelFilter.toLowerCase()));
     }, [openRouterModels, modelFilter]);

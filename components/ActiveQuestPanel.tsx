@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { useAppStore } from '../hooks/useAppContext.ts';
 import { getRoomGuidance } from '../services/learningGuidanceService.ts';
@@ -9,6 +9,15 @@ interface ActiveQuestPanelProps {
 }
 
 type PanelMode = 'expanded' | 'compact' | 'hidden';
+const QUEST_PANEL_SEEN_KEY = 'questPanelSeen';
+const readQuestPanelSeen = () => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(QUEST_PANEL_SEEN_KEY) === 'true';
+};
+const persistQuestPanelSeen = () => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(QUEST_PANEL_SEEN_KEY, 'true');
+};
 
 const ActiveQuestPanel = ({ roomId }: ActiveQuestPanelProps) => {
     const state = useAppStore(s => ({
@@ -16,17 +25,27 @@ const ActiveQuestPanel = ({ roomId }: ActiveQuestPanelProps) => {
         messages: s.messages,
         game: s.game,
     }), shallow);
-    const [panelMode, setPanelMode] = useState<PanelMode>('expanded');
+    const [hasSeenPanel, setHasSeenPanel] = useState(() => readQuestPanelSeen());
+    const [panelMode, setPanelMode] = useState<PanelMode>(() => readQuestPanelSeen() ? 'compact' : 'hidden');
 
     const guidance = getRoomGuidance(state, roomId);
     if (!guidance) return null;
+
+    useEffect(() => {
+        if (panelMode !== 'hidden' && !hasSeenPanel) {
+            persistQuestPanelSeen();
+            setHasSeenPanel(true);
+        }
+    }, [panelMode, hasSeenPanel]);
+
+    const showPanel = (mode: PanelMode = 'compact') => setPanelMode(mode);
     
     if (panelMode === 'hidden') {
         return (
             <aside className="absolute left-2 top-2 md:left-4 md:top-4 z-20 w-auto pointer-events-none">
                 <button
                     type="button"
-                    className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border transition-opacity hover:opacity-100"
+                    className={`pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border transition-opacity hover:opacity-100 ${!hasSeenPanel ? 'animate-[quest-panel-pulse_1.1s_ease-in-out_infinite]' : ''}`}
                     style={{
                         background: 'rgba(15, 23, 42, 0.72)',
                         borderColor: guidance.palette.border,
@@ -34,12 +53,20 @@ const ActiveQuestPanel = ({ roomId }: ActiveQuestPanelProps) => {
                         boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
                         opacity: 0.72,
                     }}
-                    onClick={() => setPanelMode('compact')}
+                    onClick={() => showPanel('compact')}
                     aria-label="Open room challenge popup"
                     title="Open room challenge"
                 >
                     <InfoIcon className="h-4 w-4" />
                 </button>
+                {!hasSeenPanel && (
+                    <style>{`
+                        @keyframes quest-panel-pulse {
+                            0%, 100% { transform: scale(1); opacity: 0.76; box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
+                            50% { transform: scale(1.12); opacity: 1; box-shadow: 0 0 18px rgba(251, 191, 36, 0.55); }
+                        }
+                    `}</style>
+                )}
             </aside>
         );
     }
@@ -79,7 +106,7 @@ const ActiveQuestPanel = ({ roomId }: ActiveQuestPanelProps) => {
                             type="button"
                             className="shrink-0 border p-1"
                             style={{ borderColor: guidance.palette.border, color: guidance.palette.text }}
-                            onClick={() => setPanelMode(current => current === 'expanded' ? 'compact' : 'expanded')}
+                            onClick={() => showPanel(panelMode === 'expanded' ? 'compact' : 'expanded')}
                             aria-label={isExpanded ? 'Collapse room challenge popup' : 'Expand room challenge popup'}
                         >
                             {isExpanded ? <ArrowUpIcon className="w-4 h-4" /> : <ArrowDownIcon className="w-4 h-4" />}
@@ -97,9 +124,19 @@ const ActiveQuestPanel = ({ roomId }: ActiveQuestPanelProps) => {
                 </div>
 
                 <div className={`mt-3 ${isExpanded ? '' : 'mt-2'}`}>
-                    <div className="flex items-center justify-between text-xs uppercase opacity-80">
+                    <div className="flex items-center justify-between gap-3 text-xs uppercase opacity-80">
                         <span>Progress</span>
-                        <span>{guidance.progress.label}</span>
+                        <div className="flex items-center gap-2 text-right">
+                            {guidance.revisions && (
+                                <span
+                                    className="border px-2 py-0.5"
+                                    style={{ borderColor: guidance.palette.border, color: guidance.palette.text }}
+                                >
+                                    {guidance.revisions.label}
+                                </span>
+                            )}
+                            <span>{guidance.progress.label}</span>
+                        </div>
                     </div>
                     <div className="mt-1 h-3 border border-black/50 bg-black/30">
                         <div

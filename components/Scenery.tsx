@@ -1,110 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { isPositionValid } from '../services/collisionService.ts';
 import { ZONES, DOOR_POSITIONS, INTERACTIVE_OBJECTS } from '../data/layout.ts';
 import type { DojoBelt, WorldImageArtifact } from '../types.ts';
 
-// --- Particle System for Fountain ---
-
-interface ParticleState {
-    id: number;
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    lifetime: number;
-    maxLifetime: number;
-    size: number;
-    opacity: number;
-}
-
-const useFountainParticleSystem = () => {
-    const [particles, setParticles] = useState<ParticleState[]>([]);
-    const animationFrameId = useRef<number | null>(null);
-    const lastParticleId = useRef(0);
-
-    const options = {
-        particleCount: 50,
-        gravity: 0.08,
-        origin: { x: 1498, y: 1365 }, // Top of fountain spout: left(1450) + width(100)/2 - adjustment, top(1325) + spoutY(40)
-        destinationY: 1395, // Water level in basin
-        initialVelocity: () => ({ vx: (Math.random() - 0.5) * 0.8, vy: -1.5 - Math.random() * 0.8 }),
-        lifetime: () => 40 + Math.random() * 20,
-        size: () => 4 + Math.random() * 2,
-    };
-
-    useEffect(() => {
-        const createParticle = () => {
-            const { vx, vy } = options.initialVelocity();
-            const maxLifetime = options.lifetime();
-            return {
-                id: lastParticleId.current++,
-                x: options.origin.x + (Math.random() - 0.5) * 5,
-                y: options.origin.y,
-                vx,
-                vy,
-                lifetime: maxLifetime,
-                maxLifetime,
-                size: options.size(),
-                opacity: 0,
-            };
-        };
-
-        const update = () => {
-            setParticles(prevParticles => {
-                let newParticles = prevParticles
-                    .map(p => {
-                        if (p.y > options.destinationY) {
-                            return { ...p, lifetime: 0 };
-                        }
-                        const newLifetime = p.lifetime - 1;
-                        const newVy = p.vy + options.gravity;
-                        return {
-                            ...p,
-                            x: p.x + p.vx,
-                            y: p.y + newVy,
-                            vy: newVy,
-                            lifetime: newLifetime,
-                            opacity: Math.max(0, Math.min(1, (1 - newLifetime / p.maxLifetime) * 2, (newLifetime / p.maxLifetime) * 2)),
-                        };
-                    })
-                    .filter(p => p.lifetime > 0);
-
-                const needed = options.particleCount - newParticles.length;
-                for (let i = 0; i < needed; i++) {
-                    newParticles.push(createParticle());
-                }
-
-                return newParticles;
-            });
-
-            animationFrameId.current = requestAnimationFrame(update);
-        };
-        animationFrameId.current = requestAnimationFrame(update);
-
-        return () => {
-            if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-        };
-    }, []); // Empty dependency array ensures this runs only once
-
-    return particles;
-};
-
 const FountainParticles = () => {
-    const particles = useFountainParticleSystem();
+    const droplets = [
+        { left: 1494, delay: '0s', duration: '1.35s', size: 4 },
+        { left: 1499, delay: '0.18s', duration: '1.1s', size: 5 },
+        { left: 1503, delay: '0.34s', duration: '1.45s', size: 4 },
+        { left: 1491, delay: '0.52s', duration: '1.25s', size: 3 },
+        { left: 1506, delay: '0.7s', duration: '1.4s', size: 4 },
+        { left: 1497, delay: '0.9s', duration: '1.2s', size: 5 },
+        { left: 1501, delay: '1.08s', duration: '1.32s', size: 3 },
+        { left: 1493, delay: '1.22s', duration: '1.5s', size: 4 },
+    ];
     return (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1001 }}>
-            {particles.map(p => (
+            {droplets.map((drop, index) => (
                 <div
-                    key={p.id}
+                    key={`fountain-drop-${index}`}
+                    className="fountain-droplet"
                     style={{
                         position: 'absolute',
-                        left: p.x,
-                        top: p.y,
-                        width: p.size,
-                        height: p.size,
+                        left: drop.left,
+                        top: 1365,
+                        width: drop.size,
+                        height: drop.size,
                         backgroundColor: 'rgba(200, 230, 255, 0.8)',
                         borderRadius: '50%',
-                        opacity: p.opacity,
+                        animationDelay: drop.delay,
+                        animationDuration: drop.duration,
                     }}
                 />
             ))}

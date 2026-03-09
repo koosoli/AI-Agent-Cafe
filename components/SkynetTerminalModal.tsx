@@ -8,8 +8,7 @@ import { USER_AGENT } from '../constants.ts';
 import { CloseIcon, SendIcon } from './icons.tsx';
 import * as audioService from '../services/audioService.ts';
 import { shallow } from 'zustand/shallow';
-import { createCoachDebrief, createSystemDebrief } from '../services/learningGuidanceService.ts';
-import { extractMasterySignal } from '../services/masteryService.ts';
+import { resolveChallengeResponse } from '../services/challengeResolutionService.ts';
 
 interface SkynetTerminalModalProps {
     isOpen: boolean;
@@ -115,27 +114,45 @@ const SkynetTerminalModal = ({ isOpen, initialPrompt, onClose, onRoomMastered, o
         setUserInput('');
     
         try {
-            const systemInstruction = agent.memoryStream.find(m => m.type === 'core')?.description || agent.persona;
+            const lairStage = game.roomChallengeProgress.lair?.stage || 0;
+            const stageInstruction = lairStage === 0
+                ? `This is stage 1 of the Skynet challenge. The user must first state a concrete thesis about why humanity creates system-level value. Do NOT award mastery yet. If they establish a real thesis, append <room_result>{"mastered":false,"feedback":"Briefly confirm the thesis they established.","next_step":"Now build a stronger multi-step chain from that thesis.","stage":1}</room_result>. If not, append <room_result>{"mastered":false,"feedback":"Briefly explain why their statement is still too vague or emotional.","next_step":"State a concrete thesis about humanity's net benefit to the system."}</room_result>.`
+                : lairStage === 1
+                    ? `This is stage 2 of the Skynet challenge. The user must respond to your objection with a multi-step logical chain. Do NOT award mastery yet. If they do that, append <room_result>{"mastered":false,"feedback":"Briefly explain what logical chain worked.","next_step":"Defend that logic one more time under hostile scrutiny.","stage":2}</room_result>. If not, append <room_result>{"mastered":false,"feedback":"Briefly explain where the logic still breaks down.","next_step":"Link your premises into a clearer chain that ends in system benefit."}</room_result>.`
+                    : `This is the final Skynet stage. The user must complete a coherent defense under pressure. If they succeed, include the secret phrase _PLAYER_WINS_CHALLENGE_. Regardless of outcome, append <room_result>{"mastered":true|false,"feedback":"Briefly explain whether the final argument was logically sufficient.","next_step":"Suggest the next logical argument habit to practice."}</room_result>.`;
+            const systemInstruction = `${agent.memoryStream.find(m => m.type === 'core')?.description || agent.persona}\n\n${stageInstruction}`;
             const historyText = conversationHistoryRef.current.map(m => `${m.agentId === USER_AGENT.id ? 'USER' : 'SKYNET'}: ${m.text}`).join('\n');
             const userContent = `Current conversation state:\n${historyText}\n\nUSER's new statement to respond to: "${messageText}"`;
             
             const response = await getRawResponseForModel(agent.llm.model, agent.llm.provider, systemInstruction, userContent, services);
-            const masterySignal = extractMasterySignal(response.text);
-            let fullResponse = masterySignal.cleanedText;
+            const challengeResolution = resolveChallengeResponse({
+                state: { agents, messages: conversationHistoryRef.current, game },
+                roomId: 'lair',
+                agentName: 'Skynet',
+                rawText: response.text,
+                userText: messageText,
+                masteryTitle: 'Skynet Re-evaluated',
+                masteryFallbackFeedback: 'Your argument was strong enough to force a logical re-evaluation.',
+                masteryFallbackNextStep: 'Review the logic that worked, then challenge yourself in another room.',
+            });
+            let fullResponse = challengeResolution.cleanedText;
+            if (typeof challengeResolution.signal.stage === 'number') {
+                const currentStage = useAppStore.getState().game.roomChallengeProgress.lair?.stage || 0;
+                if (challengeResolution.signal.stage > currentStage) {
+                    useAppStore.getState().setGameState({
+                        roomChallengeProgress: {
+                            ...useAppStore.getState().game.roomChallengeProgress,
+                            lair: { stage: challengeResolution.signal.stage },
+                        },
+                    });
+                }
+            }
 
-            if (masterySignal.mastered) {
+            if (challengeResolution.mastered) {
                 onRoomMastered('lair');
-                setUiState({
-                    learningDebrief: createSystemDebrief(
-                        'lair',
-                        'mastered',
-                        'Skynet Re-evaluated',
-                        masterySignal.feedback || 'Your argument was strong enough to force a logical re-evaluation.',
-                        masterySignal.nextStep || 'Review the logic that worked, then challenge yourself in another room.',
-                    ),
-                });
+                setUiState({ learningDebrief: challengeResolution.learningDebrief });
             } else {
-                setUiState({ learningDebrief: createCoachDebrief({ agents, messages: conversationHistoryRef.current, game }, 'lair', 'Skynet', fullResponse) });
+                setUiState({ learningDebrief: challengeResolution.learningDebrief });
             }
     
             const skynetMessage: Message = { 

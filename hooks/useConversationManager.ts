@@ -12,8 +12,7 @@ import { useRelationshipManager } from './useRelationshipManager.ts';
 import { useAppStore } from './useAppContext.ts';
 import { shallow } from 'zustand/shallow';
 import { findAllMentionedAgents } from '../services/chatUtils.ts';
-import { createCoachDebrief, createSystemDebrief } from '../services/learningGuidanceService.ts';
-import { extractMasterySignal } from '../services/masteryService.ts';
+import { resolveChallengeResponse } from '../services/challengeResolutionService.ts';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -54,7 +53,7 @@ const getSetupHelpMessage = (error: unknown) => {
     message.includes('api key is not configured') ||
     message.includes('not configured in settings')
   ) {
-    return "I can't respond yet. Did you add an API key in Settings? Open Settings in the top right, paste a Gemini or OpenAI API key, save, and then talk to me again.";
+    return "I can't respond yet. Open Settings in the top right and check the provider, model, and key. Gemini, OpenAI, and OpenRouter keys are supported there.";
   }
 
   if (
@@ -63,7 +62,7 @@ const getSetupHelpMessage = (error: unknown) => {
     message.includes('incorrect api key') ||
     message.includes('invalid api key')
   ) {
-    return "I still can't respond. Your API key looks missing or invalid. Open Settings in the top right, check the key for the selected provider, save, and try again.";
+    return "I still can't respond. The selected provider key looks missing or invalid. Open Settings in the top right, check the provider, key, and model, save, and try again.";
   }
 
   if (message.includes('local ai server url is not configured') || message.includes('custom server url is not configured')) {
@@ -479,28 +478,39 @@ export const useConversationManager = ({ onAgentRelativeMove, onRoomMastered, on
             }
         }
         
-        const masterySignal = extractMasterySignal(responseText);
-        responseText = masterySignal.cleanedText;
-        if (masterySignal.mastered) {
-            if (player && player.roomId !== 'outside') onRoomMastered?.(player.roomId);
-            if (playerRoomId && masterySignal.feedback) {
-                setUiState({
-                    learningDebrief: createSystemDebrief(
-                        playerRoomId,
-                        'mastered',
-                        `${ROOMS[playerRoomId]?.name || 'Room'} Review`,
-                        masterySignal.feedback,
-                        masterySignal.nextStep || 'Open the tracker, review the lesson, and move on to a new room.',
-                    ),
+        const lastUserMessage = currentHistory.slice().reverse().find(m => m.agentId === USER_AGENT.id);
+        const challengeResolution = playerRoomId
+            ? resolveChallengeResponse({
+                state: stateRef.current,
+                roomId: playerRoomId,
+                agentName: agent.name,
+                rawText: responseText,
+                userText: lastUserMessage?.text,
+            })
+            : null;
+        const masterySignal = challengeResolution?.signal;
+        responseText = challengeResolution?.cleanedText || responseText;
+        if (playerRoomId && typeof masterySignal?.stage === 'number') {
+            const currentStage = stateRef.current.game.roomChallengeProgress[playerRoomId]?.stage || 0;
+            if (masterySignal.stage > currentStage) {
+                setGameState({
+                    roomChallengeProgress: {
+                        ...stateRef.current.game.roomChallengeProgress,
+                        [playerRoomId]: { stage: masterySignal.stage },
+                    },
                 });
             }
+        }
+        if (challengeResolution?.mastered && masterySignal) {
+            if (player && player.roomId !== 'outside') onRoomMastered?.(player.roomId);
+            setUiState({ learningDebrief: challengeResolution.learningDebrief });
         }
         
         responseMsg = { id: messageId, agentId: agent.id, text: responseText, timestamp: Date.now(), groundingChunks: responsePayload.groundingChunks, usage: responsePayload.usage };
         addMessage(responseMsg);
 
-        if (playerRoomId && playerRoomId !== 'outside' && agent.isModerator && !masterySignal.mastered) {
-            setUiState({ learningDebrief: createCoachDebrief(stateRef.current, playerRoomId, agent.name, responseText) });
+        if (playerRoomId && playerRoomId !== 'outside' && agent.isModerator && !challengeResolution?.mastered && challengeResolution) {
+            setUiState({ learningDebrief: challengeResolution.learningDebrief });
         }
         
         if (lastMessage && game.agentAutonomyEnabled) updateRelationship(lastMessage.agentId, agent.id, lastMessage, responseMsg);
@@ -523,8 +533,8 @@ export const useConversationManager = ({ onAgentRelativeMove, onRoomMastered, on
         if(isProcessingTurn.current) {
             setUiState({ thinkingAgentId: null });
 
-            const lastUserMessage = currentHistory.slice().reverse().find(m => m.agentId === USER_AGENT.id);
-            if (isDirectChat && lastUserMessage?.isItemInteraction) {
+            const latestUserMessage = currentHistory.slice().reverse().find(m => m.agentId === USER_AGENT.id);
+            if (isDirectChat && latestUserMessage?.isItemInteraction) {
                 setEquippedArtifact(null);
             }
             

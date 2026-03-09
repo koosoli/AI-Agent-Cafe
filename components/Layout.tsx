@@ -5,6 +5,7 @@ import ActiveQuestPanel from './ActiveQuestPanel.tsx';
 import { AppHeader } from './AppHeader.tsx';
 import AppFooter from './AppFooter.tsx';
 import ErrorBoundary from './ErrorBoundary.tsx';
+import TouchControls from './TouchControls.tsx';
 import { useAppStore } from '../hooks/useAppContext.ts';
 import { useConversationManager } from '../hooks/useConversationManager.ts';
 import { usePlayerMovement } from '../hooks/usePlayerMovement.ts';
@@ -26,28 +27,53 @@ import { createMasteryDebrief } from '../services/learningGuidanceService.ts';
 
 const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
   const {
-    agents, isLoading, currentSubtitle, ui, game, audio, inventory, worldArtifacts, activeParticipants,
+    agents, isLoading, currentSubtitle, worldArtifacts, activeParticipants,
   } = useAppStore(s => ({
     agents: s.agents,
     isLoading: s.isLoading,
     currentSubtitle: s.currentSubtitle,
-    ui: s.ui,
-    game: s.game,
-    audio: s.audio,
-    inventory: s.inventory,
     worldArtifacts: s.worldArtifacts,
     activeParticipants: s.activeParticipants,
   }), shallow);
+  const {
+    isAnyModalOpen,
+    isFullscreen,
+    isWelcomeModalOpen,
+    selectedAgentId,
+    targetAgentId,
+    thinkingAgentId,
+    thinkingMemories,
+  } = useAppStore(s => ({
+    isAnyModalOpen: s.ui.isAnyModalOpen,
+    isFullscreen: s.ui.isFullscreen,
+    isWelcomeModalOpen: s.ui.isWelcomeModalOpen,
+    selectedAgentId: s.ui.selectedAgentId,
+    targetAgentId: s.ui.targetAgentId,
+    thinkingAgentId: s.ui.thinkingAgentId,
+    thinkingMemories: s.ui.thinkingMemories,
+  }), shallow);
+  const { displayedArtifactId, onboardingState } = useAppStore(s => ({
+    displayedArtifactId: s.game.displayedArtifactId,
+    onboardingState: s.game.onboardingState,
+  }), shallow);
+  const { audioReady, currentTrack, musicMuted, sfxMuted, musicVolume, sfxVolume } = useAppStore(s => ({
+    audioReady: s.audio.ready,
+    currentTrack: s.audio.currentTrack,
+    musicMuted: s.audio.musicMuted,
+    sfxMuted: s.audio.sfxMuted,
+    musicVolume: s.audio.musicVolume,
+    sfxVolume: s.audio.sfxVolume,
+  }), shallow);
+  const inventory = useAppStore(s => s.inventory);
   
   const {
     setAgents, setUiState, setGameState, setAudioState, setInsightStatus
   } = useAppStore.getState();
 
-  const { isAnyModalOpen, targetAgentId } = ui;
-  const { displayedArtifactId } = game;
-
   const [isPlayerBeingDragged, setIsPlayerBeingDragged] = useState(false);
   const [moveTarget, setMoveTarget] = useState<{ x: number; y: number } | null>(null);
+  const [touchMoveVector, setTouchMoveVector] = useState<{ x: number; y: number } | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   
   const userInputRef = useRef<HTMLTextAreaElement>(null);
   const agentElementRefs = useRef(new Map<string, HTMLDivElement | null>());
@@ -65,6 +91,16 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
   const clearMoveTarget = useCallback(() => setMoveTarget(null), []);
   const onPlayerMoveStart = useCallback(() => setIsAutoViewEnabled(true), [setIsAutoViewEnabled]);
   const focusViewport = useAppStore(s => s.focusViewport);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateTouchCapability = () => {
+      setIsTouchDevice(window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+    };
+    updateTouchCapability();
+    window.addEventListener('resize', updateTouchCapability);
+    return () => window.removeEventListener('resize', updateTouchCapability);
+  }, []);
   
   // --- Proximity Detection for Interactive Objects ---
   const proximityFlags = useAppStore(s => ({
@@ -173,7 +209,7 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
     onStartWaiting: handleStartWaiting,
   });
 
-  usePlayerMovement(clearMoveTarget, moveTarget, clearMoveTarget, onPlayerMoveStart, ui.isAnyModalOpen, skip, agentElementRefs);
+  usePlayerMovement(onPlayerMoveStart, moveTarget, touchMoveVector, clearMoveTarget, onPlayerMoveStart, isAnyModalOpen, skip, agentElementRefs);
 
   const handleUseItemOnAgent = useCallback((agent: Agent, artifact: Artifact) => {
     const { addMessage } = useAppStore.getState();
@@ -280,32 +316,65 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
     setUiState({ isWorldArtifactModalOpen: true, worldArtifactToInspect: artifact });
   }, [setUiState]);
 
+  const adjustZoom = useCallback((direction: 1 | -1) => {
+    const viewportElement = (viewportRef as React.RefObject<HTMLDivElement>).current;
+    if (!viewportElement) return;
+
+    setIsAutoViewEnabled(false);
+    setIsMobileZoomLocked(true);
+
+    const rect = viewportElement.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const worldX = (centerX / viewport.scale) - viewport.offset.x;
+    const worldY = (centerY / viewport.scale) - viewport.offset.y;
+    const scaleFactor = direction > 0 ? 1.15 : 1 / 1.15;
+    const newScale = Math.min(Math.max(0.1, viewport.scale * scaleFactor), 2.5);
+    if (newScale === viewport.scale) return;
+
+    const newOffsetX = (centerX / newScale) - worldX;
+    const newOffsetY = (centerY / newScale) - worldY;
+    setTargetViewport({ scale: newScale, offset: { x: newOffsetX, y: newOffsetY } });
+  }, [setIsAutoViewEnabled, setIsMobileZoomLocked, setTargetViewport, viewport, viewportRef]);
+
+  const handleCenterView = useCallback(() => {
+    setTouchMoveVector(null);
+    setMoveTarget(null);
+    setIsAutoViewEnabled(true);
+    setIsMobileZoomLocked(false);
+    focusViewport?.();
+  }, [focusViewport, setIsAutoViewEnabled, setIsMobileZoomLocked]);
+
   useEffect(() => {
-    if (audio.ready) {
+    if (audioReady) {
         if (playerRoomId === 'outside') audioService.playAmbience(); else audioService.stopAmbience();
-        const roomMusicKey = (playerRoomId && ROOMS[playerRoomId as keyof typeof ROOMS]?.musicTrack as keyof typeof audioService.MUSIC_TRACKS) || 'None';
-        const newTrackUrl = audioService.MUSIC_TRACKS[roomMusicKey] || '';
-        if (newTrackUrl !== audio.currentTrack) setAudioState({ currentTrack: newTrackUrl });
-        audioService.playMusic(newTrackUrl);
+        const roomMusicKey = (playerRoomId && ROOMS[playerRoomId as keyof typeof ROOMS]?.musicTrack) || 'None';
+        if (roomMusicKey !== currentTrack) setAudioState({ currentTrack: roomMusicKey });
+        audioService.playMusic(roomMusicKey);
     }
-  }, [playerRoomId, audio.ready, audio.currentTrack, setAudioState]);
+  }, [playerRoomId, audioReady, currentTrack, setAudioState]);
 
   useEffect(() => {
     if (isAnyModalOpen) audioService.playMenuMusic();
-    else if (audio.ready) {
+    else if (audioReady) {
       audioService.stopMenuMusic();
-      const roomMusicKey = (playerRoomId && ROOMS[playerRoomId as keyof typeof ROOMS]?.musicTrack as keyof typeof audioService.MUSIC_TRACKS) || 'None';
-      audioService.playMusic(audioService.MUSIC_TRACKS[roomMusicKey] || '');
+      const roomMusicKey = (playerRoomId && ROOMS[playerRoomId as keyof typeof ROOMS]?.musicTrack) || 'None';
+      audioService.playMusic(roomMusicKey);
       if (playerRoomId === 'outside') audioService.playAmbience();
       else audioService.stopAmbience();
     }
-  }, [isAnyModalOpen, audio.ready, playerRoomId]);
+  }, [isAnyModalOpen, audioReady, playerRoomId]);
 
   // NEW EFFECT: Synchronize mute state with audio service
   useEffect(() => {
-    audioService.setMusicMuted(audio.musicMuted);
-    audioService.setSfxMuted(audio.sfxMuted);
-  }, [audio.musicMuted, audio.sfxMuted]);
+    audioService.setMusicMuted(musicMuted);
+    audioService.setSfxMuted(sfxMuted);
+  }, [musicMuted, sfxMuted]);
+
+  useEffect(() => {
+    audioService.setMusicVolume(musicVolume);
+    audioService.setSfxVolume(sfxVolume);
+  }, [musicVolume, sfxVolume]);
 
   useEffect(() => {
     const playBark = () => {
@@ -333,11 +402,11 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
           }
       }
     };
-    if (!ui.isWelcomeModalOpen && audio.ready && game.onboardingState === 'needed' && !onboardingBarkPlayed.current) {
+    if (!isWelcomeModalOpen && audioReady && onboardingState === 'needed' && !onboardingBarkPlayed.current) {
       onboardingBarkPlayed.current = true;
       setTimeout(playBark, 1500);
     }
-  }, [ui.isWelcomeModalOpen, audio.ready, game.onboardingState]);
+  }, [isWelcomeModalOpen, audioReady, onboardingState]);
 
   useEffect(() => {
     agents.forEach(agent => {
@@ -356,8 +425,8 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
   return (
     <>
       <AppHeader
-        isFullscreen={ui.isFullscreen}
-        onToggleFullscreen={() => setUiState({ isFullscreen: !ui.isFullscreen })}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setUiState({ isFullscreen: !isFullscreen })}
       />
       <main className="w-full flex-grow flex items-center justify-center px-2 md:px-4 pb-2 md:pb-4 overflow-hidden relative">
         <ActiveQuestPanel roomId={playerRoomId} />
@@ -366,11 +435,11 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
               ref={viewportRef}
               agents={agents.filter(a => !a.isLocked)}
               currentSubtitle={currentSubtitle}
-              selectedAgentId={ui.selectedAgentId}
-              targetAgentId={ui.targetAgentId}
+              selectedAgentId={selectedAgentId}
+              targetAgentId={targetAgentId}
               participantIds={activeParticipants.map(p => p.id)}
-              thinkingAgentId={ui.thinkingAgentId}
-              thinkingMemories={ui.thinkingMemories}
+              thinkingAgentId={thinkingAgentId}
+              thinkingMemories={thinkingMemories}
               viewport={viewport}
               playerRoomId={playerRoomId}
               displayedImageUrl={displayedImage?.type === 'image' ? displayedImage.imageUrl : null}
@@ -382,6 +451,13 @@ const Layout = React.forwardRef<HTMLDivElement>((props, viewportRef) => {
               {...inputHandlers}
             />
         </ErrorBoundary>
+        <TouchControls
+          visible={isTouchDevice && !isWelcomeModalOpen}
+          onMoveChange={setTouchMoveVector}
+          onZoomIn={() => adjustZoom(1)}
+          onZoomOut={() => adjustZoom(-1)}
+          onCenterView={handleCenterView}
+        />
       </main>
       <AppFooter
         userInputRef={userInputRef}

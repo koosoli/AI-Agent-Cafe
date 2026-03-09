@@ -1,5 +1,7 @@
 import { ROOMS } from '../data/rooms.ts';
+import { getRoomChallengeConfig } from '../data/roomChallengeConfigs.ts';
 import type { AppState, DojoBelt, LearningDebrief } from '../types.ts';
+import { getChallengeAttemptCount, getChallengeStage } from './challengeStateService.ts';
 
 type CurriculumPalette = {
     accent: string;
@@ -33,6 +35,10 @@ export type RoomGuidance = {
     coachTip: string;
     nextAction: string;
     steps: GuidedStep[];
+    revisions: {
+        count: number;
+        label: string;
+    } | null;
     progress: {
         completed: number;
         total: number;
@@ -152,6 +158,20 @@ const buildStepStatuses = (labels: string[], completed: number): GuidedStep[] =>
     }));
 };
 
+const getRevisionCount = (state: Pick<AppState, 'agents' | 'messages' | 'game'>, roomId: string) => (
+    getChallengeAttemptCount(state, roomId)
+);
+
+const getRevisionSummary = (state: Pick<AppState, 'agents' | 'messages' | 'game'>, roomId: string) => {
+    const count = getRevisionCount(state, roomId);
+    if (count <= 0) return null;
+
+    return {
+        count,
+        label: `${count} revision${count === 1 ? '' : 's'}`,
+    };
+};
+
 const getRoomAgentIds = (state: Pick<AppState, 'agents'>, roomId: string) => state.agents.filter(agent => agent.roomId === roomId).map(agent => agent.id);
 
 const getRoomConversationCount = (state: Pick<AppState, 'agents' | 'messages'>, roomId: string) => {
@@ -180,6 +200,10 @@ const getCompletedSteps = (state: Pick<AppState, 'agents' | 'messages' | 'game'>
             if (state.game.artStudioChallengeState?.status === 'critique_given') return 2;
             if (state.game.lastArtPrompt) return 1;
             return 0;
+        case 'philo_cafe':
+        case 'library':
+        case 'lair':
+            return Math.max(0, Math.min(getChallengeStage(state, roomId), 2));
         case 'dojo': {
             if (!state.game.dojoChallengeState) return 0;
             const beltIndex = DOJO_BELTS.indexOf(state.game.dojoChallengeState.belt);
@@ -226,9 +250,13 @@ const getNextAction = (state: Pick<AppState, 'agents' | 'messages' | 'game'>, ro
             if (state.game.artStudioChallengeState?.status !== 'critique_given') return 'Ask the studio artists to critique your first prompt.';
             return 'Rewrite the prompt so the critique is visibly reflected in the next version.';
         case 'philo_cafe':
-            return 'State a position clearly, then answer the strongest objection with logic rather than rhetoric.';
+            if (getChallengeStage(state, 'philo_cafe') === 0) return 'State a clear philosophical position and give at least one reason for it.';
+            if (getChallengeStage(state, 'philo_cafe') === 1) return 'Answer the strongest objection directly instead of repeating your original claim.';
+            return 'Defend your position across the full exchange and show why your reasoning still holds.';
         case 'library':
-            return 'Offer an interpretation that links theme, tone, and textual evidence.';
+            if (getChallengeStage(state, 'library') === 0) return 'Offer a clear interpretation of the text, not just a summary of events.';
+            if (getChallengeStage(state, 'library') === 1) return 'Support your interpretation with a concrete detail from the text.';
+            return 'Push past evidence into explanation: why does that detail matter for theme, tone, or meaning?';
         case 'dojo':
             if (!state.game.dojoChallengeState) return 'Enter the dojo and start the first belt challenge.';
             return `Run another simulation for the ${state.game.dojoChallengeState.belt} belt and tighten the system prompt before submitting again.`;
@@ -241,7 +269,9 @@ const getNextAction = (state: Pick<AppState, 'agents' | 'messages' | 'game'>, ro
             if (state.game.classroomChallengeState.status === 'question_asked') return 'Use the Grounding Terminal to research the live answer.';
             return 'Return to the teacher and explain the sourced answer in your own words.';
         case 'lair':
-            return 'Build a multi-step argument around system benefit, not emotion or pleading.';
+            if (getChallengeStage(state, 'lair') === 0) return 'State a concrete thesis about why humanity creates system-level value.';
+            if (getChallengeStage(state, 'lair') === 1) return 'Respond to Skynet\'s objection with a clearer multi-step chain of logic.';
+            return 'Complete the final defense by showing why your logic still holds under hostile scrutiny.';
         default:
             return 'Stay in the room, speak to the moderator, and push the challenge forward deliberately.';
     }
@@ -274,6 +304,7 @@ export const getRoomGuidance = (state: Pick<AppState, 'agents' | 'messages' | 'g
             coachTip: nextRoom.coachTip,
             nextAction: `Recommended next stop: ${ROOMS[nextRoomId].name}. ${getNextAction(state, nextRoomId)}`,
             steps: buildStepStatuses(['Choose a room', 'Complete its challenge', 'Return for the next skill'], completed > 0 ? 2 : 1),
+            revisions: null,
             progress: {
                 completed,
                 total,
@@ -299,6 +330,7 @@ export const getRoomGuidance = (state: Pick<AppState, 'agents' | 'messages' | 'g
         coachTip: blueprint.coachTip,
         nextAction: getNextAction(state, roomId),
         steps,
+        revisions: getRevisionSummary(state, roomId),
         progress: {
             completed: Math.min(completed, blueprint.steps.length),
             total: blueprint.steps.length,
@@ -332,26 +364,35 @@ export const createCoachDebrief = (
     state: Pick<AppState, 'agents' | 'messages' | 'game'>,
     roomId: string,
     agentName: string,
+    userText: string | undefined,
     responseText: string,
 ): LearningDebrief => {
     const guidance = getRoomGuidance(state, roomId);
     const fallbackNextStep = guidance?.nextAction || 'Use the feedback to make your next action more specific.';
+    const summary = userText
+        ? `You said: "${clipText(userText, 100)}" ${agentName} replied: "${clipText(responseText, 120)}"`
+        : `${agentName}'s latest feedback: ${clipText(responseText)}`;
     return createSystemDebrief(
         roomId,
         'coach',
         `${ROOMS[roomId]?.name || 'Room'} Coach`,
-        `${agentName}'s latest feedback: ${clipText(responseText)}`,
+        summary,
         fallbackNextStep,
     );
 };
 
+export const getRoomConnectionText = (roomId: string) => getRoomChallengeConfig(roomId)?.connectionText;
+
 export const createMasteryDebrief = (roomId: string) => {
     const guidance = getRoomCurriculum(roomId);
+    const connectionText = getRoomConnectionText(roomId);
     return createSystemDebrief(
         roomId,
         'mastered',
         `${ROOMS[roomId]?.name || 'Room'} Mastered`,
         `You cleared this lesson. ${guidance?.summary || ''}`.trim(),
-        'Open the tracker, review what you learned, and head to a new room for the next skill.',
+        connectionText
+            ? `Open the tracker, review what you learned, and use this next: ${connectionText}`
+            : 'Open the tracker, review what you learned, and head to a new room for the next skill.',
     );
 };

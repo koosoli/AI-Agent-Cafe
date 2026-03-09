@@ -4,6 +4,7 @@ import { CloseIcon } from './icons.tsx';
 import AgentSprite from './AgentSprite.tsx';
 import { USER_AGENT } from '../constants.ts';
 import { shallow } from 'zustand/shallow';
+import type { Agent } from '../types.ts';
 
 interface SocialGraphModalProps {
   isOpen: boolean;
@@ -62,6 +63,23 @@ const SocialGraphModal = ({ isOpen, onClose }: SocialGraphModalProps) => {
     return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
   }, [nodePositions]);
 
+  const resetLayout = useCallback(() => {
+    const initialPositions: Record<string, { x: number, y: number }> = {};
+    const centerX = 400;
+    const centerY = 400;
+    const radius = 300;
+    initialPositions[USER_AGENT.id] = { x: centerX, y: centerY };
+    const angleStep = aiAgents.length > 0 ? (2 * Math.PI) / aiAgents.length : 0;
+    aiAgents.forEach((agent, i) => {
+      initialPositions[agent.id] = {
+        x: centerX + radius * Math.cos(i * angleStep - Math.PI / 2),
+        y: centerY + radius * Math.sin(i * angleStep - Math.PI / 2),
+      };
+    });
+    setNodePositions(initialPositions);
+    setSelectedNodeId(null);
+  }, [aiAgents]);
+
   const clampViewport = useCallback((vp: Viewport): Viewport => {
     if (!svgRef.current || graphBounds.width === 0) return vp;
     const { width: svgWidth, height: svgHeight } = svgRef.current.getBoundingClientRect();
@@ -95,19 +113,9 @@ const SocialGraphModal = ({ isOpen, onClose }: SocialGraphModalProps) => {
   useLayoutEffect(() => {
     if (isOpen) {
       setSelectedNodeId(null);
-      const initialPositions: Record<string, { x: number, y: number }> = {};
-      const centerX = 400, centerY = 400, radius = 300;
-      initialPositions[USER_AGENT.id] = { x: centerX, y: centerY };
-      const angleStep = aiAgents.length > 0 ? (2 * Math.PI) / aiAgents.length : 0;
-      aiAgents.forEach((agent, i) => {
-        initialPositions[agent.id] = {
-          x: centerX + radius * Math.cos(i * angleStep - Math.PI / 2),
-          y: centerY + radius * Math.sin(i * angleStep - Math.PI / 2),
-        };
-      });
-      setNodePositions(initialPositions);
+      resetLayout();
     }
-  }, [isOpen, aiAgents]);
+  }, [isOpen, resetLayout]);
 
   useLayoutEffect(() => {
     if (isOpen && Object.keys(nodePositions).length > 0 && svgRef.current) {
@@ -286,6 +294,31 @@ const SocialGraphModal = ({ isOpen, onClose }: SocialGraphModalProps) => {
   };
   
   const getAgentById = useCallback((id: string) => allNodes.find(a => a.id === id), [allNodes]);
+  const fitGraphToView = useCallback(() => {
+    if (!svgRef.current || Object.keys(nodePositions).length === 0 || graphBounds.width === 0) return;
+    const { width: svgWidth, height: svgHeight } = svgRef.current.getBoundingClientRect();
+    const PADDING = 100;
+    const scaleX = svgWidth / (graphBounds.width + PADDING);
+    const scaleY = svgHeight / (graphBounds.height + PADDING);
+    const nextScale = Math.min(scaleX, scaleY, 1.5);
+    const nextViewport = clampViewport({ scale: nextScale, offset: { x: 0, y: 0 } });
+    setTargetViewport(nextViewport);
+  }, [clampViewport, graphBounds, nodePositions]);
+
+  const centerOnNode = useCallback((nodeId: string) => {
+    if (!svgRef.current || !nodePositions[nodeId]) return;
+    const { width: svgWidth, height: svgHeight } = svgRef.current.getBoundingClientRect();
+    const current = targetViewportRef.current;
+    const node = nodePositions[nodeId];
+    const nextViewport = clampViewport({
+      scale: current.scale,
+      offset: {
+        x: (svgWidth / 2) - (node.x * current.scale),
+        y: (svgHeight / 2) - (node.y * current.scale),
+      },
+    });
+    setTargetViewport(nextViewport);
+  }, [clampViewport, nodePositions]);
 
   const edges = useMemo(() => {
     if (!selectedNodeId) return [];
@@ -320,6 +353,32 @@ const SocialGraphModal = ({ isOpen, onClose }: SocialGraphModalProps) => {
     return ids;
   }, [selectedNodeId, edges]);
 
+  const selectedAgent = useMemo(() => selectedNodeId ? getAgentById(selectedNodeId) || null : null, [selectedNodeId, getAgentById]);
+  const relationshipSummary = useMemo(() => {
+    if (!selectedAgent) return { outgoing: [], incoming: [], strongestPositive: null as null | { agent: Agent; score: number }, strongestNegative: null as null | { agent: Agent; score: number } };
+
+    const outgoing = Object.entries(selectedAgent.relationships || {})
+      .map(([targetId, score]) => ({ agent: getAgentById(targetId), score }))
+      .filter((entry): entry is { agent: Agent; score: number } => Boolean(entry.agent))
+      .sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+
+    const incoming = allNodes
+      .filter(agent => agent.id !== selectedAgent.id)
+      .map(agent => ({ agent, score: agent.relationships?.[selectedAgent.id] }))
+      .filter((entry): entry is { agent: Agent; score: number } => typeof entry.score === 'number')
+      .sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+
+    const combined = [...outgoing, ...incoming];
+    const strongestPositive = combined.filter(edge => edge.score > 0).sort((a, b) => b.score - a.score)[0] || null;
+    const strongestNegative = combined.filter(edge => edge.score < 0).sort((a, b) => a.score - b.score)[0] || null;
+
+    return { outgoing, incoming, strongestPositive, strongestNegative };
+  }, [selectedAgent, getAgentById, allNodes]);
+
+  const totalRelationshipCount = edges.length;
+  const positiveEdgeCount = edges.filter(edge => edge.score > 0).length;
+  const negativeEdgeCount = edges.filter(edge => edge.score < 0).length;
+
   if (!isOpen) return null;
 
   return (
@@ -337,69 +396,148 @@ const SocialGraphModal = ({ isOpen, onClose }: SocialGraphModalProps) => {
           </button>
         </header>
         <main className="flex-grow bg-gray-900/50 p-2 overflow-hidden">
-          <svg 
-            ref={svgRef} 
-            className="w-full h-full cursor-grab active:cursor-grabbing" 
-            onMouseDown={(e) => handleMouseDown(e)}
-            onWheel={handleWheel}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-          >
-            <g transform={`translate(${viewport.offset.x} ${viewport.offset.y}) scale(${viewport.scale})`}>
-              {edges.map(({ source, target, score }) => {
-                const sourcePos = nodePositions[source];
-                const targetPos = nodePositions[target];
-                if (!sourcePos || !targetPos) return null;
-                const isFriend = score > 0;
-                const strokeColor = isFriend ? '#39FF14' : '#FF3131'; // Neon Green or Bright Red
+          <div className="flex h-full flex-col gap-2 lg:flex-row">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="mb-2 flex flex-wrap items-center gap-2 border border-white/10 bg-black/20 p-2 text-xs uppercase tracking-[0.2em] text-gray-300">
+                <span className="border border-white/10 px-2 py-1">Nodes {allNodes.length}</span>
+                <span className="border border-green-400/30 px-2 py-1 text-green-300">Positive {positiveEdgeCount}</span>
+                <span className="border border-red-400/30 px-2 py-1 text-red-300">Negative {negativeEdgeCount}</span>
+                <span className="border border-white/10 px-2 py-1">Visible edges {totalRelationshipCount}</span>
+                <button onClick={() => fitGraphToView()} className="border border-white/20 px-2 py-1 transition-colors hover:bg-white/10">Fit</button>
+                <button onClick={() => centerOnNode(USER_AGENT.id)} className="border border-white/20 px-2 py-1 transition-colors hover:bg-white/10">Center Player</button>
+                {selectedNodeId && (
+                  <button onClick={() => centerOnNode(selectedNodeId)} className="border border-white/20 px-2 py-1 transition-colors hover:bg-white/10">Center Selection</button>
+                )}
+                <button onClick={resetLayout} className="border border-white/20 px-2 py-1 transition-colors hover:bg-white/10">Reset Layout</button>
+              </div>
+              <svg 
+                ref={svgRef} 
+                className="h-full w-full cursor-grab active:cursor-grabbing rounded-sm border border-white/10 bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.08),_rgba(15,23,42,0.85)_55%)]" 
+                onMouseDown={(e) => handleMouseDown(e)}
+                onWheel={handleWheel}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+              >
+                <g transform={`translate(${viewport.offset.x} ${viewport.offset.y}) scale(${viewport.scale})`}>
+                  {edges.map(({ source, target, score }) => {
+                    const sourcePos = nodePositions[source];
+                    const targetPos = nodePositions[target];
+                    if (!sourcePos || !targetPos) return null;
+                    const isFriend = score > 0;
+                    const strokeColor = isFriend ? '#39FF14' : '#FF3131';
+                    const intensity = Math.max(0.35, Math.min(1, Math.abs(score) / 10));
 
-                return (
-                  <g key={`${source}-${target}`} style={{ pointerEvents: 'none' }}>
-                    {/* Glow effect line */}
-                    <line
-                      x1={sourcePos.x} y1={sourcePos.y}
-                      x2={targetPos.x} y2={targetPos.y}
-                      stroke={strokeColor}
-                      strokeWidth={10 / viewport.scale}
-                      opacity={0.3}
-                      strokeLinecap="round"
-                      style={{ filter: `blur(${3 / viewport.scale}px)` }}
-                    />
-                    {/* Animated dashed line */}
-                    <line
-                      x1={sourcePos.x} y1={sourcePos.y}
-                      x2={targetPos.x} y2={targetPos.y}
-                      stroke={strokeColor}
-                      strokeWidth={3 / viewport.scale}
-                      opacity={1}
-                      strokeLinecap="round"
-                      strokeDasharray={`${15 / viewport.scale} ${10 / viewport.scale}`}
-                      style={{ animation: 'dash-flow 40s linear infinite' }}
-                    />
-                  </g>
-                );
-              })}
-              {allNodes.map(agent => {
-                const pos = nodePositions[agent.id];
-                if (!pos) return null;
-                const isSelected = selectedNodeId === agent.id;
-                const isConnected = !selectedNodeId || (connectedIds && connectedIds.has(agent.id));
-                const opacity = isConnected ? 1 : 0.3;
+                    return (
+                      <g key={`${source}-${target}`} style={{ pointerEvents: 'none' }}>
+                        <line
+                          x1={sourcePos.x} y1={sourcePos.y}
+                          x2={targetPos.x} y2={targetPos.y}
+                          stroke={strokeColor}
+                          strokeWidth={(8 + Math.abs(score) * 0.4) / viewport.scale}
+                          opacity={0.18 + intensity * 0.24}
+                          strokeLinecap="round"
+                          style={{ filter: `blur(${3 / viewport.scale}px)` }}
+                        />
+                        <line
+                          x1={sourcePos.x} y1={sourcePos.y}
+                          x2={targetPos.x} y2={targetPos.y}
+                          stroke={strokeColor}
+                          strokeWidth={(2 + Math.abs(score) * 0.15) / viewport.scale}
+                          opacity={0.65 + intensity * 0.25}
+                          strokeLinecap="round"
+                          strokeDasharray={`${15 / viewport.scale} ${10 / viewport.scale}`}
+                          style={{ animation: 'dash-flow 40s linear infinite' }}
+                        />
+                        <text
+                          x={(sourcePos.x + targetPos.x) / 2}
+                          y={(sourcePos.y + targetPos.y) / 2 - (10 / viewport.scale)}
+                          fill={strokeColor}
+                          fontSize={12 / viewport.scale}
+                          textAnchor="middle"
+                          opacity={0.9}
+                        >
+                          {score > 0 ? '+' : ''}{score}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {allNodes.map(agent => {
+                    const pos = nodePositions[agent.id];
+                    if (!pos) return null;
+                    const isSelected = selectedNodeId === agent.id;
+                    const isConnected = !selectedNodeId || (connectedIds && connectedIds.has(agent.id));
+                    const opacity = isConnected ? 1 : 0.22;
 
-                return (
-                  <foreignObject key={agent.id} x={pos.x - 40} y={pos.y - 40} width="80" height="80" onMouseDown={(e) => handleMouseDown(e, agent.id)} data-agent-id={agent.id}>
-                    <div className={`flex flex-col items-center justify-center w-full h-full transition-all duration-200 cursor-pointer p-1 rounded-md ${isSelected ? 'bg-yellow-400/50' : 'bg-black/20'}`} style={{ opacity, pointerEvents: 'all' }}>
-                      <AgentSprite spriteSeed={agent.spriteSeed || 'default'} className="w-12 h-12" />
-                      <p className="text-xs text-white text-center truncate w-full bg-black/50 px-1">{agent.name}</p>
+                    return (
+                      <foreignObject key={agent.id} x={pos.x - 44} y={pos.y - 44} width="88" height="88" onMouseDown={(e) => handleMouseDown(e, agent.id)} data-agent-id={agent.id}>
+                        <div className={`flex h-full w-full flex-col items-center justify-center rounded-md p-1 transition-all duration-200 cursor-pointer ${isSelected ? 'bg-yellow-400/60 ring-2 ring-yellow-200' : agent.id === USER_AGENT.id ? 'bg-cyan-400/20 ring-1 ring-cyan-300/60' : 'bg-black/20'}`} style={{ opacity, pointerEvents: 'all' }}>
+                          <AgentSprite spriteSeed={agent.spriteSeed || 'default'} className="w-12 h-12" />
+                          <p className="w-full truncate bg-black/50 px-1 text-center text-xs text-white">{agent.name}</p>
+                        </div>
+                      </foreignObject>
+                    );
+                  })}
+                </g>
+              </svg>
+            </div>
+            <aside className="flex w-full shrink-0 flex-col border border-white/10 bg-black/25 p-3 text-sm text-gray-200 lg:w-[21rem]">
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Selection</p>
+              {selectedAgent ? (
+                <>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="rounded-md bg-black/30 p-2">
+                      <AgentSprite spriteSeed={selectedAgent.spriteSeed || 'default'} className="w-12 h-12" />
                     </div>
-                  </foreignObject>
-                )
-              })}
-            </g>
-          </svg>
+                    <div>
+                      <h3 className="text-xl text-white">{selectedAgent.name}</h3>
+                      <p className="text-xs uppercase tracking-[0.2em] text-gray-400">{selectedAgent.id === USER_AGENT.id ? 'Player' : 'Agent'}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs uppercase tracking-[0.2em]">
+                    <div className="border border-green-400/20 bg-green-400/10 p-2 text-green-200">
+                      <div>Warmest link</div>
+                      <div className="mt-1 text-sm normal-case text-white">{relationshipSummary.strongestPositive ? `${relationshipSummary.strongestPositive.agent.name} (${relationshipSummary.strongestPositive.score > 0 ? '+' : ''}${relationshipSummary.strongestPositive.score})` : 'None yet'}</div>
+                    </div>
+                    <div className="border border-red-400/20 bg-red-400/10 p-2 text-red-200">
+                      <div>Sharpest conflict</div>
+                      <div className="mt-1 text-sm normal-case text-white">{relationshipSummary.strongestNegative ? `${relationshipSummary.strongestNegative.agent.name} (${relationshipSummary.strongestNegative.score})` : 'None yet'}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Outgoing</p>
+                      <div className="mt-2 space-y-2">
+                        {relationshipSummary.outgoing.length > 0 ? relationshipSummary.outgoing.map(({ agent, score }) => (
+                          <button key={`out-${agent.id}`} onClick={() => setSelectedNodeId(agent.id)} className="flex w-full items-center justify-between border border-white/10 bg-black/20 px-3 py-2 text-left transition-colors hover:bg-white/10">
+                            <span>{agent.name}</span>
+                            <span className={score >= 0 ? 'text-green-300' : 'text-red-300'}>{score > 0 ? '+' : ''}{score}</span>
+                          </button>
+                        )) : <p className="text-sm text-gray-500">No outgoing relationships recorded.</p>}
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Incoming</p>
+                      <div className="mt-2 space-y-2">
+                        {relationshipSummary.incoming.length > 0 ? relationshipSummary.incoming.map(({ agent, score }) => (
+                          <button key={`in-${agent.id}`} onClick={() => setSelectedNodeId(agent.id)} className="flex w-full items-center justify-between border border-white/10 bg-black/20 px-3 py-2 text-left transition-colors hover:bg-white/10">
+                            <span>{agent.name}</span>
+                            <span className={score >= 0 ? 'text-green-300' : 'text-red-300'}>{score > 0 ? '+' : ''}{score}</span>
+                          </button>
+                        )) : <p className="text-sm text-gray-500">No incoming relationships recorded.</p>}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-3 flex h-full items-center justify-center border border-dashed border-white/15 bg-black/10 p-4 text-center text-sm text-gray-400">
+                  Click a node to inspect incoming and outgoing relationships. The graph highlights only the selected network slice.
+                </div>
+              )}
+            </aside>
+          </div>
         </main>
         <footer className="p-2 border-t-2 border-black mt-auto text-center text-sm text-gray-400">
-            Click an agent to view their relationships. Drag nodes to rearrange. Use mouse wheel or pinch to zoom.
+            Click an agent to inspect links. Drag nodes to rearrange, use mouse wheel or pinch to zoom, and use Fit or Center to reframe the graph.
         </footer>
       </div>
     </div>

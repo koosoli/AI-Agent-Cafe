@@ -36,6 +36,7 @@ export class PromptBuilder {
     private movementEnabled: boolean;
     private userProfile: Partial<UserProfile>;
     private game: AppState['game'];
+    private services: AppState['services'];
     private subTask: string;
     private memories?: Record<MemoryType, Memory[]>;
     private inventory?: AppState['inventory'];
@@ -61,6 +62,7 @@ export class PromptBuilder {
         movementEnabled: boolean,
         userProfile: Partial<UserProfile>,
         game: AppState['game'],
+        services: AppState['services'],
         subTask: string,
         memories?: Record<MemoryType, Memory[]>,
         inventory?: AppState['inventory'],
@@ -71,6 +73,7 @@ export class PromptBuilder {
         this.movementEnabled = movementEnabled;
         this.userProfile = userProfile;
         this.game = game;
+        this.services = services;
         this.subTask = subTask;
         this.memories = memories;
         this.inventory = inventory;
@@ -129,6 +132,13 @@ export class PromptBuilder {
     }
     
     private _buildContext(): this {
+        const availableProviders = [
+            this.services.geminiApiKey ? 'Gemini' : null,
+            this.services.openAiApiKey ? 'OpenAI' : null,
+            this.services.openRouterApiKey ? 'OpenRouter' : null,
+            this.services.localApiUrl ? 'Local AI' : null,
+            this.services.customApiUrl ? 'Custom AI' : null,
+        ].filter(Boolean).join(', ');
         let scenarioLine = this.scenarioPrompt ? `The overall scenario is: "${this.scenarioPrompt}"` : '';
         let equippedItemContext = '';
         if (this.game.equippedArtifactId && this.inventory) {
@@ -194,6 +204,7 @@ export class PromptBuilder {
             "\n--- CONTEXT ---",
             `**SCENARIO:** ${scenarioLine || 'A general discussion.'}`,
             equippedItemContext ? `**ACTIVE ITEM CONTEXT:** ${equippedItemContext}` : '',
+            `**MODEL ACCESS:** ${availableProviders ? `A working provider is configured right now: ${availableProviders}. Do not tell the user they still need setup unless the system instructions explicitly say the provider failed.` : 'No model provider is configured right now.'}`,
             `**USER PROFILE & GREETING:**\n- ${userInfoSection}`,
             `**SPECIAL ABILITIES:**\n- ${specialAbilities.join('\n- ')}`,
         ];
@@ -243,19 +254,39 @@ export class PromptBuilder {
         if (this.agent.roomId === 'office') {
             if (this.game.officeChallengeState?.status === 'critique_needed') {
                 const userPrompt = this.game.officeChallengeState.lastPrompt;
-                criticalTask = `The user wants feedback on a component they just generated with the prompt: "${userPrompt}". Your persona has specific rules for this. Your critique should be based on your expertise and the current game difficulty. ${difficultyContext}`;
+                criticalTask = `The user wants feedback on a component they just generated with the prompt: "${userPrompt}". Your persona has specific rules for this. Your critique should be based on your expertise and the current game difficulty. ${difficultyContext} This is the critique phase, so do NOT award mastery yet. After your normal response, append <room_result>{"mastered":false,"feedback":"Summarize the most important design issue to fix next.","next_step":"Name the exact layout, hierarchy, or usability change the user should make in their next prompt.","score":0-10,"rubric":{"clarity":0-5,"usability":0-5,"visual_hierarchy":0-5}}</room_result> with actual integers.`;
             } else if (this.game.officeChallengeState?.status === 'final_submission') {
-                criticalTask = `The user has submitted a revised component. Evaluate it based on the current difficulty setting. ${difficultyContext} If it addresses prior critique well enough, congratulate them, include the secret phrase _PLAYER_WINS_CHALLENGE_, and append <room_result>{"mastered":true,"feedback":"Briefly explain why the revision worked.","next_step":"Suggest the next skill to practice."}</room_result>.`;
+                criticalTask = `The user has submitted a revised component. Evaluate it based on the current difficulty setting. ${difficultyContext} If it addresses prior critique well enough, congratulate them and include the secret phrase _PLAYER_WINS_CHALLENGE_. Regardless of outcome, append <room_result>{"mastered":true|false,"feedback":"Briefly explain the strongest part of the revision or the biggest remaining gap.","next_step":"Suggest the next skill to practice or the next prompt revision to attempt.","score":0-10,"rubric":{"clarity":0-5,"usability":0-5,"visual_hierarchy":0-5}}</room_result> with actual integers.`;
             }
         }
         if (this.agent.roomId === 'art_studio' && this.game.artStudioChallengeState?.status === 'critique_given' && this.game.lastArtPrompt) {
-            criticalTask = `The user has a new art prompt: "${this.game.lastArtPrompt}". Evaluate if it shows growth based on your prior critique and the current difficulty. ${difficultyContext} If so, praise them, include the secret phrase _PLAYER_WINS_CHALLENGE_, and append <room_result>{"mastered":true,"feedback":"Briefly explain what improved in the prompt.","next_step":"Suggest the next creative skill to explore."}</room_result>.`;
+            criticalTask = `The user has a new art prompt: "${this.game.lastArtPrompt}". Evaluate if it shows growth based on your prior critique and the current difficulty. ${difficultyContext} If the revised prompt is strong enough, praise them and include the secret phrase _PLAYER_WINS_CHALLENGE_. Regardless of outcome, append <room_result>{"mastered":true|false,"feedback":"Briefly explain what improved most or what still needs refinement.","next_step":"Suggest the next prompt change or creative skill to explore.","score":0-10,"rubric":{"composition":0-5,"lighting":0-5,"intentionality":0-5}}</room_result> with actual integers.`;
         }
         if (this.agent.roomId === 'studio' && this.agent.isModerator && this.game.studioConversationState) {
             criticalTask = `The current screenplay turn count is ${this.game.studioConversationState.turn}. Evaluate the user's contributions according to your persona's challenge rules and the current difficulty. ${difficultyContext}`;
         }
         if (this.agent.roomId === 'classroom' && this.game.classroomChallengeState?.status === 'researched') {
-            criticalTask = `The user has researched your question: "${this.game.classroomChallengeState.question}". Evaluate their answer based on the current difficulty. ${difficultyContext} If correct (explaining RAG vs standard AI), congratulate them, include the secret phrase _PLAYER_WINS_CHALLENGE_, and append <room_result>{"mastered":true,"feedback":"Briefly explain why the answer was well-grounded.","next_step":"Suggest another research habit to practice."}</room_result>.`;
+            criticalTask = `The user has researched your question: "${this.game.classroomChallengeState.question}". Evaluate their answer based on the current difficulty. ${difficultyContext} If correct (explaining RAG vs standard AI), congratulate them and include the secret phrase _PLAYER_WINS_CHALLENGE_. Regardless of outcome, append <room_result>{"mastered":true|false,"feedback":"Briefly explain whether the answer was accurate, grounded, and well-synthesized.","next_step":"Suggest the next research habit or answer revision to practice.","score":0-10,"rubric":{"accuracy":0-5,"grounding":0-5,"synthesis":0-5}}</room_result> with actual integers.`;
+        }
+        if (this.agent.roomId === 'philo_cafe' && this.agent.isModerator) {
+            const stage = this.game.roomChallengeProgress.philo_cafe?.stage || 0;
+            if (stage === 0) {
+                criticalTask = `This is stage 1 of the Philo Cafe challenge. The user must first state a clear position and support it with at least one reason. ${difficultyContext} Do NOT award mastery at this stage. If the user has clearly done that, append <room_result>{"mastered":false,"feedback":"Briefly confirm the claim they established.","next_step":"Now address the strongest objection directly.","stage":1}</room_result>. If they have not done that yet, append <room_result>{"mastered":false,"feedback":"Briefly explain what is missing from their initial position.","next_step":"State a clearer claim and give at least one reason for it."}</room_result>.`;
+            } else if (stage === 1) {
+                criticalTask = `This is stage 2 of the Philo Cafe challenge. The user must answer a counterargument directly instead of restating their original view. ${difficultyContext} Do NOT award mastery at this stage. If they successfully address the objection, append <room_result>{"mastered":false,"feedback":"Briefly explain what rebuttal worked.","next_step":"Defend the position one more time under pressure.","stage":2}</room_result>. If not, append <room_result>{"mastered":false,"feedback":"Briefly explain why the rebuttal did not answer the objection.","next_step":"Respond to the objection itself, not just your original claim."}</room_result>.`;
+            } else {
+                criticalTask = `This is the final Philo Cafe stage. The user must defend the position across the whole exchange with coherent reasoning. ${difficultyContext} If they succeed, include the secret phrase _PLAYER_WINS_CHALLENGE_. Regardless of outcome, append <room_result>{"mastered":true|false,"feedback":"Briefly explain whether their final defense held together logically.","next_step":"Suggest the next argument habit to practice."}</room_result>.`;
+            }
+        }
+        if (this.agent.roomId === 'library' && this.agent.isModerator) {
+            const stage = this.game.roomChallengeProgress.library?.stage || 0;
+            if (stage === 0) {
+                criticalTask = `This is stage 1 of the Library challenge. The user must offer a real interpretation of the text, not a summary. ${difficultyContext} Do NOT award mastery at this stage. If they provide a clear interpretation, append <room_result>{"mastered":false,"feedback":"Briefly confirm the interpretation they established.","next_step":"Support that interpretation with a concrete detail from the text.","stage":1}</room_result>. If not, append <room_result>{"mastered":false,"feedback":"Briefly explain why the response is still summary rather than interpretation.","next_step":"Make a claim about theme, tone, character, or style."}</room_result>.`;
+            } else if (stage === 1) {
+                criticalTask = `This is stage 2 of the Library challenge. The user must support the interpretation with concrete textual evidence. ${difficultyContext} Do NOT award mastery at this stage. If they do that well, append <room_result>{"mastered":false,"feedback":"Briefly explain what evidence strengthened the reading.","next_step":"Now explain why that evidence matters for the larger meaning.","stage":2}</room_result>. If not, append <room_result>{"mastered":false,"feedback":"Briefly explain what evidence is missing or too vague.","next_step":"Anchor your interpretation in a specific detail, phrase, or moment from the text."}</room_result>.`;
+            } else {
+                criticalTask = `This is the final Library stage. The user must connect interpretation and evidence into a persuasive analysis. ${difficultyContext} If they succeed, include the secret phrase _PLAYER_WINS_CHALLENGE_. Regardless of outcome, append <room_result>{"mastered":true|false,"feedback":"Briefly explain whether their analysis moved beyond summary into real interpretation.","next_step":"Suggest the next literary analysis habit to practice."}</room_result>.`;
+            }
         }
         if (this.agent.id === 'DOJO1' && this.subTask.startsWith("As the Dojo Sensei, you must evaluate")) {
             criticalTask = this.subTask;

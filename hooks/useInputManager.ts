@@ -29,6 +29,7 @@ type InputManagerProps = {
 };
 
 type DragState = { type: 'pan' | 'agent'; id?: string; start: { x: number; y: number }, initialOffset?: {x:number, y:number}, initialPos?: {top:number, left:number} } | null;
+type ViewportWheelEvent = Pick<WheelEvent, 'clientX' | 'clientY' | 'deltaY' | 'preventDefault'>;
 
 export const useInputManager = (props: InputManagerProps) => {
   const {
@@ -139,7 +140,7 @@ export const useInputManager = (props: InputManagerProps) => {
         window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
-  
+
   const touchInteractionRef = useRef<{
     startTime: number; startPos: { x: number; y: number }; isHeld: boolean; holdTimeout: number | null;
     isPinch: boolean; initialPinchDist: number; initialScale: number; hasMoved: boolean;
@@ -193,7 +194,6 @@ export const useInputManager = (props: InputManagerProps) => {
     if (!rect) return;
 
     if (e.touches.length >= 2) {
-      e.preventDefault();
       const t1 = e.touches[0]; const t2 = e.touches[1];
       const currentViewport = viewportRefForCallbacks.current;
       touchInteraction.isPinch = true;
@@ -244,7 +244,6 @@ export const useInputManager = (props: InputManagerProps) => {
     }
 
     if (e.touches.length >= 2 && touchInteraction.isPinch && touchInteraction.pivotWorldPoint) {
-      e.preventDefault();
       const t1 = e.touches[0]; const t2 = e.touches[1];
       const newMidpoint = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
       
@@ -264,7 +263,6 @@ export const useInputManager = (props: InputManagerProps) => {
     
     const currentDragState = dragStateRef.current;
     if (currentDragState?.type === 'agent' && e.touches.length === 1) {
-      e.preventDefault();
       const touch = e.touches[0];
       const dx = (touch.clientX - currentDragState.start.x) / currentViewport.scale;
       const dy = (touch.clientY - currentDragState.start.y) / currentViewport.scale;
@@ -276,8 +274,6 @@ export const useInputManager = (props: InputManagerProps) => {
 
     const isPlayerMoveIntent = e.touches.length === 1 && !touchInteraction.agentId && !dragStateRef.current;
     if (isPlayerMoveIntent) {
-      e.preventDefault();
-      
       const touch = e.touches[0];
       const worldX = ((touch.clientX - rect.left) / currentViewport.scale) - currentViewport.offset.x;
       const worldY = ((touch.clientY - rect.top) / currentViewport.scale) - currentViewport.offset.y;
@@ -293,8 +289,6 @@ export const useInputManager = (props: InputManagerProps) => {
     setIsPlayerBeingDragged(false);
     const touchInteraction = touchInteractionRef.current;
     if (touchInteraction.holdTimeout) clearTimeout(touchInteraction.holdTimeout);
-    
-    clearMoveTarget();
 
     if (touchInteraction.isPinch) {
       if (e.touches.length < 2) {
@@ -338,6 +332,7 @@ export const useInputManager = (props: InputManagerProps) => {
         setIsAutoViewEnabled(true);
       }
       setDragState(null);
+      clearMoveTarget();
     }
     touchInteraction.hasMoved = false; touchInteraction.isHeld = false; touchInteraction.agentId = null;
   }, [setIsAutoViewEnabled, setIsMobileZoomLocked, setDragState, setIsPlayerBeingDragged, onAgentClick, onAgentDoubleClick, clearMoveTarget, setAgents, setUiState]);
@@ -365,7 +360,7 @@ export const useInputManager = (props: InputManagerProps) => {
       }
   }, [handleFocus, setDragState, setIsAutoViewEnabled, setIsPlayerBeingDragged, setUiState, setAgentTask]);
   
-  const onViewportChange = useCallback((e: React.WheelEvent, isManual: boolean) => {
+  const onViewportChange = useCallback((e: ViewportWheelEvent, isManual: boolean) => {
     if (!viewportRef.current) return;
     if (isManual) setIsAutoViewEnabled(false);
     e.preventDefault();
@@ -386,6 +381,20 @@ export const useInputManager = (props: InputManagerProps) => {
 
     setTargetViewport({ scale: newScale, offset: { x: newOffsetX, y: newOffsetY } });
   }, [setIsAutoViewEnabled, setTargetViewport, viewportRef]);
+
+  useEffect(() => {
+    const viewportEl = viewportRef.current;
+    if (!viewportEl) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      onViewportChange(e, true);
+    };
+
+    viewportEl.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      viewportEl.removeEventListener('wheel', handleWheel);
+    };
+  }, [onViewportChange, viewportRef]);
   
   const onAddAgentClick = useCallback((pos: { top: number, left: number, roomId: string }) => {
       setUiState({ isAddAgentModalOpen: true, addAgentSpawnPos: pos });

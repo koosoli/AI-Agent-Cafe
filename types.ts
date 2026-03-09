@@ -270,6 +270,8 @@ export interface LearningDebrief {
     summary: string;
     lesson: string;
     nextStep: string;
+    score?: number;
+    rubric?: Record<string, number>;
 }
 
 export type ApiUsagePayload =
@@ -380,6 +382,9 @@ export interface AppState {
             belt: DojoBelt;
             status: 'initial' | 'evaluating' | 'passed';
         } | null;
+        roomChallengeProgress: Record<string, {
+            stage: number;
+        }>;
         conversationQueue: string[];
         playerSpeed: number;
         runMultiplier: number;

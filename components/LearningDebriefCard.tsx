@@ -9,6 +9,7 @@ const LearningDebriefCard = () => {
     if (!learningDebrief) return null;
 
     const palette = getRoomPalette(learningDebrief.roomId);
+    const rubricEntries = Object.entries(learningDebrief.rubric || {});
 
     return (
         <div className="fixed right-3 top-20 z-[2050] w-[24rem] max-w-[calc(100%-1.5rem)]">
@@ -51,6 +52,39 @@ const LearningDebriefCard = () => {
                         <p className="mt-1 text-sm">{learningDebrief.nextStep}</p>
                     </div>
                 </div>
+
+                {(typeof learningDebrief.score === 'number' || rubricEntries.length > 0) && (
+                    <div className="mt-3 border-t border-white/20 pt-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs uppercase tracking-[0.2em] opacity-80">Rubric</p>
+                            {typeof learningDebrief.score === 'number' && (
+                                <p className="text-xs uppercase tracking-[0.2em] opacity-80">Score {learningDebrief.score}/10</p>
+                            )}
+                        </div>
+                        {rubricEntries.length > 0 && (
+                            <div className="mt-2 space-y-2">
+                                {rubricEntries.map(([label, value]) => (
+                                    <div key={label}>
+                                        <div className="flex items-center justify-between gap-3 text-sm">
+                                            <span className="capitalize">{label}</span>
+                                            <span>{value}/5</span>
+                                        </div>
+                                        <div className="mt-1 h-2 border border-black/40 bg-black/25">
+                                            <div
+                                                className="h-full"
+                                                style={{
+                                                    width: `${Math.max(0, Math.min(100, (value / 5) * 100))}%`,
+                                                    background: palette.accent,
+                                                    boxShadow: `0 0 8px ${palette.accent}`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

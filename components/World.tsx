@@ -20,7 +20,6 @@ interface WorldProps {
   worldArtifacts: WorldImageArtifact[];
   moveTarget: { x: number; y: number } | null;
   agentElementRefs: React.RefObject<Map<string, HTMLDivElement | null>>;
-  onViewportChange: (e: React.WheelEvent | React.TouchEvent, isManual: boolean, scaleMultiplier?: number) => void;
   onDragStart: (e: React.MouseEvent, agentId?: string) => void;
   onAgentClick: (agentId: string) => void;
   onAgentDoubleClick: (agentId: string) => void;
@@ -78,7 +77,7 @@ const MoveTargetIndicator = ({ x, y }: { x: number; y: number }) => (
   </div>
 );
 
-const World = React.forwardRef<HTMLDivElement, WorldProps>(({ agents, currentSubtitle, selectedAgentId, targetAgentId, participantIds, thinkingAgentId, thinkingMemories, viewport, playerRoomId, displayedImageUrl, worldArtifacts, moveTarget, agentElementRefs, onViewportChange, onDragStart, onAgentClick, onAgentDoubleClick, onAddAgentClick, onArtEaselClick, onGroundingComputerClick, onVibeComputerClick, onScreenplayTerminalClick, onModelComparisonTerminalClick, onGameBoardClick, onWorldTouchStart, onAgentTouchStart, onTouchMove, onTouchEnd, onWorldArtifactClick, proximityFlags }, ref) => {
+const World = React.forwardRef<HTMLDivElement, WorldProps>(({ agents, currentSubtitle, selectedAgentId, targetAgentId, participantIds, thinkingAgentId, thinkingMemories, viewport, playerRoomId, displayedImageUrl, worldArtifacts, moveTarget, agentElementRefs, onDragStart, onAgentClick, onAgentDoubleClick, onAddAgentClick, onArtEaselClick, onGroundingComputerClick, onVibeComputerClick, onScreenplayTerminalClick, onModelComparisonTerminalClick, onGameBoardClick, onWorldTouchStart, onAgentTouchStart, onTouchMove, onTouchEnd, onWorldArtifactClick, proximityFlags }, ref) => {
   const activeAgentId = currentSubtitle?.agentId || null;
   
   const handleBackgroundClick = useCallback(() => onAgentClick(''), [onAgentClick]);
@@ -87,8 +86,7 @@ const World = React.forwardRef<HTMLDivElement, WorldProps>(({ agents, currentSub
     <div 
         ref={ref}
         className="relative w-full h-full max-w-7xl mx-auto border-4 border-black shadow-[8px_8px_0px_black] overflow-hidden cursor-move outline-none world-container"
-        style={{ backgroundColor: playerRoomId && playerRoomId !== 'outside' ? '#0c142c' : '#1f2937' }}
-        onWheel={(e) => onViewportChange(e, true)}
+        style={{ backgroundColor: playerRoomId && playerRoomId !== 'outside' ? '#0c142c' : '#1f2937', touchAction: 'none' }}
         onMouseDown={(e) => onDragStart(e)}
         onTouchStart={onWorldTouchStart}
         onTouchMove={onTouchMove}

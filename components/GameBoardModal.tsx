@@ -8,8 +8,8 @@ import { USER_AGENT } from '../constants.ts';
 import AgentSprite from './AgentSprite.tsx';
 import { DIFFICULTY_SETTINGS } from '../data/gameConfig.ts';
 import { shallow } from 'zustand/shallow';
-import { createCoachDebrief, createSystemDebrief } from '../services/learningGuidanceService.ts';
-import { extractMasterySignal } from '../services/masteryService.ts';
+import { createSystemDebrief } from '../services/learningGuidanceService.ts';
+import { resolveChallengeResponse } from '../services/challengeResolutionService.ts';
 
 interface GameBoardModalProps {
   isOpen: boolean;
@@ -202,23 +202,26 @@ export const GameBoardModal = ({ isOpen, onClose, onRoomMastered }: GameBoardMod
 
             const response = await runAITurn(speaker, prompt);
             
-            const masterySignal = extractMasterySignal(response.text);
-            let finalResponseText = masterySignal.cleanedText;
+            const lastPlayerEntry = [...currentDcs.log].reverse().find(entry => entry.speaker === 'Player');
+            const challengeResolution = resolveChallengeResponse({
+                state: stateRef.current,
+                roomId: 'dungeon',
+                agentName: agent?.name || 'DM',
+                rawText: response.text,
+                userText: lastPlayerEntry?.content,
+                masteryTitle: 'Dungeon Mastery',
+                masteryFallbackFeedback: 'The DM accepted your role-play as creative and in-character.',
+                masteryFallbackNextStep: 'Review what made the scene work, then take that specificity into another room.',
+            });
+            const masterySignal = challengeResolution.signal;
+            let finalResponseText = challengeResolution.cleanedText;
             let shouldEndGame = false;
-            if (masterySignal.mastered) {
+            if (challengeResolution.mastered) {
                 onRoomMastered('dungeon');
                 shouldEndGame = true;
-                setUiState({
-                    learningDebrief: createSystemDebrief(
-                        'dungeon',
-                        'mastered',
-                        'Dungeon Mastery',
-                        masterySignal.feedback || 'The DM accepted your role-play as creative and in-character.',
-                        masterySignal.nextStep || 'Review what made the scene work, then take that specificity into another room.',
-                    ),
-                });
+                setUiState({ learningDebrief: challengeResolution.learningDebrief });
             } else if (speaker === 'DM') {
-                setUiState({ learningDebrief: createCoachDebrief(stateRef.current, 'dungeon', agent?.name || 'DM', finalResponseText) });
+                setUiState({ learningDebrief: challengeResolution.learningDebrief });
             }
             
             if (agent) {

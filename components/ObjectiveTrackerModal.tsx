@@ -61,6 +61,11 @@ const ObjectiveTrackerModal = ({ isOpen, onClose }: ObjectiveTrackerModalProps) 
                                                         {guidance.progress.label}
                                                     </span>
                                                 )}
+                                                {guidance?.revisions && (
+                                                    <span className="text-xs uppercase px-2 py-1 border border-white/20 bg-black/20">
+                                                        {guidance.revisions.label}
+                                                    </span>
+                                                )}
                                             </div>
                                             <p className={`mt-1 text-lg ${isMastered ? 'text-yellow-100' : 'text-gray-300'}`}>{room.objective}</p>
                                             {guidance && (

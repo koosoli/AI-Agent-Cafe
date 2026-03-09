@@ -8,28 +8,50 @@ const getAssetPath = (path: string) => {
   // ensure no double slashes if base ends with / and path starts with /
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const finalPath = `${cleanBase}${cleanPath}`;
-  console.log(`[Audio Debug] Resolved path for ${path}: ${finalPath} (Base: ${baseUrl})`);
-  return finalPath;
+  return `${cleanBase}${cleanPath}`;
 }
 
 // Paths to audio files in the 'public' folder
 const MESSAGE_SOUND_PATH = getAssetPath('/soundfiles/chat.mp3');
 const WALKING_SOUND_PATH = getAssetPath('/soundfiles/walking.mp3');
 const MENU_MUSIC_PATH = getAssetPath('/soundfiles/music/Menu.mp3');
+const TUTORIAL_MUSIC_PATH = getAssetPath('/soundfiles/music/tutorial.mp3');
+const CALM_ROOMS_MUSIC_PATH = getAssetPath('/soundfiles/music/calmlibraryandothercalmrooms.mp3');
+const PHILO_CAFE_MUSIC_PATH = getAssetPath('/soundfiles/music/philocafe.mp3');
+const PROMPT_DOJO_MUSIC_PATH = getAssetPath('/soundfiles/music/promptdojo.mp3');
+const SKYNET_MUSIC_PATH = getAssetPath('/soundfiles/music/skynet.mp3');
+const PIXEL_QUEST_MUSIC_PATH = getAssetPath('/soundfiles/music/Pixel_Quest.mp3');
+const PLACEHOLDER_TRACK_PATHS = [
+  getAssetPath('/soundfiles/music/placeholder1.mp3'),
+  getAssetPath('/soundfiles/music/placeholder2.mp3'),
+  getAssetPath('/soundfiles/music/placeholder3.mp3'),
+];
 const OUTSIDE_AMBIENCE_PATH = getAssetPath('/soundfiles/outside.mp3');
 const VICTORY_SOUND_PATH = getAssetPath('/soundfiles/star_won.mp3');
 const SKYNET_TYPING_SOUND_PATH = getAssetPath('/soundfiles/typing.mp3');
 
-// Available background music tracks
-export const MUSIC_TRACKS = {
-  'None': '',
-  'Pixel Quest': getAssetPath('/soundfiles/music/Pixel_Quest.mp3'), // For AI Cafe, Outside
-  'Creative Mind': getAssetPath('/soundfiles/music/Menu.mp3'),      // For Studio & Office
-  'Deep Thought': getAssetPath('/soundfiles/music/Menu.mp3'),       // Placeholder for Philo Cafe
+type MusicTrackDefinition = {
+  label: string;
+  type: 'single' | 'playlist';
+  tracks: string[];
 };
 
+// Available background music tracks
+export const MUSIC_TRACKS = {
+  'None': { label: 'None', type: 'single', tracks: [] },
+  'Tutorial': { label: 'Tutorial', type: 'single', tracks: [TUTORIAL_MUSIC_PATH] },
+  'Calm Rooms': { label: 'Calm Rooms', type: 'single', tracks: [CALM_ROOMS_MUSIC_PATH] },
+  'Philo Cafe': { label: 'Philo Cafe', type: 'single', tracks: [PHILO_CAFE_MUSIC_PATH] },
+  'Prompt Dojo': { label: 'Prompt Dojo', type: 'single', tracks: [PROMPT_DOJO_MUSIC_PATH] },
+  'Skynet': { label: 'Skynet', type: 'single', tracks: [SKYNET_MUSIC_PATH] },
+  'Pixel Quest': { label: 'Pixel Quest', type: 'single', tracks: [PIXEL_QUEST_MUSIC_PATH] },
+  'Placeholder Rotation': { label: 'Placeholder Rotation', type: 'playlist', tracks: PLACEHOLDER_TRACK_PATHS },
+} as const satisfies Record<string, MusicTrackDefinition>;
+
+export type MusicTrackKey = keyof typeof MUSIC_TRACKS;
+
 const audioCache = new Map<string, string>();
+const pendingAudioLoads = new Map<string, Promise<void>>();
 
 let sfxMasterVolume = 1.0;
 
@@ -60,7 +82,7 @@ const createAudio = (loop: boolean, volume: number) => {
   return el;
 };
 
-const musicAudio = createAudio(true, 0.3);
+const musicAudio = createAudio(false, 0.3);
 const menuMusicAudio = createAudio(true, 0.3);
 const playerWalkAudio = createAudio(true, 0.6);
 const aiWalkAudio = createAudio(true, 0.5); // New looping audio for all AI agents
@@ -72,6 +94,69 @@ let isReady = false;
 
 let sfxMuted = false;
 let musicMuted = false;
+let activeMusicTrackKey: MusicTrackKey = 'None';
+let activePlaylistIndex = 0;
+
+const resolveTrackUrl = (trackUrl: string) => audioCache.get(trackUrl) || trackUrl;
+
+const playResolvedMusicTrack = (trackUrl: string) => {
+  if (!musicAudio || !trackUrl) return;
+  const resolvedUrl = resolveTrackUrl(trackUrl);
+  if (musicAudio.src !== resolvedUrl) {
+    musicAudio.src = resolvedUrl;
+  }
+  musicAudio.currentTime = 0;
+  musicAudio.play().catch(e => {
+    if ((e as DOMException).name !== 'AbortError') console.warn('Audio play interrupted:', e);
+  });
+};
+
+const queueMusicTrack = (trackUrl: string) => {
+  if (!musicAudio) return;
+  const cachedUrl = audioCache.get(trackUrl);
+  if (cachedUrl) {
+    playResolvedMusicTrack(trackUrl);
+    return;
+  }
+
+  loadAndCacheAudio(trackUrl).then(() => {
+    if (trackUrl === getCurrentMusicAssetPath()) {
+      playResolvedMusicTrack(trackUrl);
+    }
+  }).catch(err => {
+    console.error(`On-demand audio loading failed for ${trackUrl}:`, err);
+  });
+};
+
+const getCurrentMusicAssetPath = () => {
+  const trackDefinition = MUSIC_TRACKS[activeMusicTrackKey];
+  if (!trackDefinition || trackDefinition.tracks.length === 0) return '';
+  if (trackDefinition.type === 'playlist') {
+    return trackDefinition.tracks[activePlaylistIndex] || '';
+  }
+  return trackDefinition.tracks[0] || '';
+};
+
+const advanceMusicQueue = () => {
+  const trackDefinition = MUSIC_TRACKS[activeMusicTrackKey];
+  if (!trackDefinition || musicMuted || !isReady || !musicAudio) return;
+
+  if (trackDefinition.type === 'playlist') {
+    activePlaylistIndex = (activePlaylistIndex + 1) % trackDefinition.tracks.length;
+  }
+
+  const nextTrackPath = getCurrentMusicAssetPath();
+  if (!nextTrackPath) {
+    musicAudio.pause();
+    return;
+  }
+
+  queueMusicTrack(nextTrackPath);
+};
+
+if (musicAudio) {
+  musicAudio.addEventListener('ended', advanceMusicQueue);
+}
 
 export const setMusicVolume = (level: number) => {
   const newVolume = Math.max(0, Math.min(1, level));
@@ -100,6 +185,9 @@ export const setMusicMuted = (muted: boolean) => {
   musicMuted = muted;
   if (musicAudio) musicAudio.muted = muted;
   if (menuMusicAudio) menuMusicAudio.muted = muted;
+  if (!muted && activeMusicTrackKey !== 'None' && musicAudio && musicAudio.paused) {
+    advanceMusicQueue();
+  }
 };
 
 const playAudioElement = (element: HTMLAudioElement | null, trackUrl: string, isMuted: boolean) => {
@@ -141,21 +229,47 @@ const playAudioElement = (element: HTMLAudioElement | null, trackUrl: string, is
 
 const loadAndCacheAudio = async (path: string) => {
   if (!path || audioCache.has(path)) return;
+  const existingLoad = pendingAudioLoads.get(path);
+  if (existingLoad) return existingLoad;
+
   try {
-    const response = await makeApiCall(path, {});
-    if (!response.ok) throw new Error(`Failed to fetch audio: ${response.statusText}`);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    audioCache.set(path, blobUrl);
-    console.log(`Cached audio: ${path}`);
+    const loadPromise = (async () => {
+      const response = await makeApiCall(path, {});
+      if (!response.ok) throw new Error(`Failed to fetch audio: ${response.statusText}`);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      audioCache.set(path, blobUrl);
+    })();
+    pendingAudioLoads.set(path, loadPromise);
+    await loadPromise;
   } catch (error) {
     console.error(`Could not load or cache audio for path: ${path}`, error);
+  } finally {
+    pendingAudioLoads.delete(path);
   }
 };
 
-export const playMusic = (trackUrl: string) => {
+export const getMusicTrackLabel = (trackKey: string) => {
+  const trackDefinition = MUSIC_TRACKS[trackKey as MusicTrackKey];
+  return trackDefinition?.label || 'None';
+};
+
+export const playMusic = (trackKey: string) => {
   if (menuMusicAudio) menuMusicAudio.pause();
-  playAudioElement(musicAudio, trackUrl, musicMuted);
+  const nextTrackKey = (trackKey in MUSIC_TRACKS ? trackKey : 'None') as MusicTrackKey;
+  if (activeMusicTrackKey === nextTrackKey && musicAudio && !musicAudio.paused) return;
+
+  activeMusicTrackKey = nextTrackKey;
+  activePlaylistIndex = 0;
+
+  if (!musicAudio) return;
+  if (nextTrackKey === 'None' || musicMuted || !isReady) {
+    musicAudio.pause();
+    musicAudio.removeAttribute('src');
+    return;
+  }
+
+  advanceMusicQueue();
 };
 
 export const playAmbience = () => playAudioElement(ambienceAudio, OUTSIDE_AMBIENCE_PATH, sfxMuted);

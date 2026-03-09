@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import type { Agent } from '../types.ts';
 import { USER_AGENT } from '../constants.ts';
 import { isPositionValid, getRoomForPosition } from '../services/collisionService.ts';
 import { startPlayerWalking, stopPlayerWalking } from '../services/audioService.ts';
@@ -8,6 +7,7 @@ import { useAppStore } from './useAppContext.ts';
 export function usePlayerMovement(
   onPlayerMoved: () => void,
   moveTarget: { x: number; y: number } | null,
+  touchMoveVector: { x: number; y: number } | null,
   clearMoveTarget: () => void,
   onPlayerMoveStart: () => void,
   isModalOpen: boolean,
@@ -24,6 +24,13 @@ export function usePlayerMovement(
   const setUiState = useAppStore(s => s.setUiState);
   const setGameState = useAppStore(s => s.setGameState);
   const setAgents = useAppStore(s => s.setAgents);
+  const moveTargetRef = useRef(moveTarget);
+  const touchMoveVectorRef = useRef(touchMoveVector);
+  const clearMoveTargetRef = useRef(clearMoveTarget);
+  const onPlayerMovedRef = useRef(onPlayerMoved);
+  const onPlayerMoveStartRef = useRef(onPlayerMoveStart);
+  const onSkipRef = useRef(onSkip);
+  const isModalOpenRef = useRef(isModalOpen);
 
   const latestState = useRef(useAppStore.getState());
   useEffect(() => {
@@ -32,6 +39,16 @@ export function usePlayerMovement(
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    moveTargetRef.current = moveTarget;
+    touchMoveVectorRef.current = touchMoveVector;
+    clearMoveTargetRef.current = clearMoveTarget;
+    onPlayerMovedRef.current = onPlayerMoved;
+    onPlayerMoveStartRef.current = onPlayerMoveStart;
+    onSkipRef.current = onSkip;
+    isModalOpenRef.current = isModalOpen;
+  }, [moveTarget, touchMoveVector, clearMoveTarget, onPlayerMoved, onPlayerMoveStart, onSkip, isModalOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,7 +64,7 @@ export function usePlayerMovement(
 
       if (key === 'enter' || e.key === 'Escape') {
         e.preventDefault();
-        onSkip();
+        onSkipRef.current();
       }
     };
     
@@ -59,7 +76,7 @@ export function usePlayerMovement(
     window.addEventListener('keyup', handleKeyUp);
 
     const gameLoop = () => {
-        if (isModalOpen) {
+        if (isModalOpenRef.current) {
           if (isMoving.current) {
             isMoving.current = false;
             stopPlayerWalking();
@@ -87,6 +104,10 @@ export function usePlayerMovement(
         if (keyMove.down) dy += 1;
         if (keyMove.left) dx -= 1;
         if (keyMove.right) dx += 1;
+        if (touchMoveVectorRef.current) {
+            dx += touchMoveVectorRef.current.x;
+            dy += touchMoveVectorRef.current.y;
+        }
         
         let runFromGamepad = false;
         if (navigator.getGamepads) {
@@ -103,7 +124,7 @@ export function usePlayerMovement(
                     // Other gamepad button logic... (skip, listen)
                     const skipButtonPressed = gamepad.buttons[1]?.pressed ?? false;
                     if (!currentState.ui.isAnyModalOpen && skipButtonPressed && !gamepadSkipButtonPressed.current) {
-                        onSkip();
+                        onSkipRef.current();
                         gamepadSkipButtonPressed.current = true;
                     } else if (!skipButtonPressed) {
                         gamepadSkipButtonPressed.current = false;
@@ -127,25 +148,25 @@ export function usePlayerMovement(
         const manualMoveMagnitude = Math.hypot(dx, dy);
         if (manualMoveMagnitude > 0) {
             hasMoveIntent = true;
-            clearMoveTarget(); // Manual movement cancels click-to-move
+            clearMoveTargetRef.current(); // Manual movement cancels click-to-move
             isRunning = keysPressed.current['shift'] || runFromGamepad;
             const speed = isRunning ? currentState.game.playerSpeed * currentState.game.runMultiplier : currentState.game.playerSpeed;
             dx = (dx / manualMoveMagnitude) * speed;
             dy = (dy / manualMoveMagnitude) * speed;
-        } else if (moveTarget && player) {
+        } else if (moveTargetRef.current && player) {
             const SNAP_DISTANCE = 10;
-            const targetDx = moveTarget.x - player.position.left;
-            const targetDy = moveTarget.y - player.position.top;
+            const targetDx = moveTargetRef.current.x - player.position.left;
+            const targetDy = moveTargetRef.current.y - player.position.top;
             const distanceToTarget = Math.hypot(targetDx, targetDy);
 
             if (distanceToTarget < SNAP_DISTANCE) {
-                const finalPos = { left: moveTarget.x, top: moveTarget.y };
+                const finalPos = { left: moveTargetRef.current.x, top: moveTargetRef.current.y };
                 const newRoomId = getRoomForPosition(finalPos.left, finalPos.top);
                 const newAgents = latestState.current.agents.map(a =>
                     a.id === USER_AGENT.id ? { ...a, position: finalPos, roomId: newRoomId } : a
                 );
                 setAgents(newAgents);
-                clearMoveTarget();
+                clearMoveTargetRef.current();
                 hasMoveIntent = false;
             } else {
                 hasMoveIntent = true;
@@ -159,10 +180,10 @@ export function usePlayerMovement(
         
         // --- Movement Application & Audio ---
         if (hasMoveIntent) {
-            onPlayerMoved();
+            onPlayerMovedRef.current();
             if (!isMoving.current) {
                 isMoving.current = true;
-                onPlayerMoveStart();
+                onPlayerMoveStartRef.current();
             }
             startPlayerWalking(isRunning);
         } else {
@@ -214,5 +235,5 @@ export function usePlayerMovement(
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [setUiState, setGameState, setAgents, onPlayerMoved, moveTarget, clearMoveTarget, onPlayerMoveStart, isModalOpen, onSkip, agentElementRefs]);
+  }, [setUiState, setGameState, setAgents, agentElementRefs]);
 }

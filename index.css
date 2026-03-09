@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+@keyframes fountainRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.85);
+  }
+  20% {
+    opacity: 0.95;
+  }
+  55% {
+    opacity: 0.9;
+    transform: translate3d(var(--fountain-drift-x, 0px), -24px, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--fountain-drift-x, 0px) * 1.4), 18px, 0) scale(0.75);
+  }
+}
+
+.fountain-droplet {
+  --fountain-drift-x: 0px;
+  animation-name: fountainRise;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.fountain-droplet:nth-child(odd) {
+  --fountain-drift-x: -6px;
+}
+
+.fountain-droplet:nth-child(even) {
+  --fountain-drift-x: 6px;
+}

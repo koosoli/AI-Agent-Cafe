@@ -7,6 +7,7 @@ import { DEFAULT_AGENTS } from '../data/agents.ts';
 import { GAME_CONFIG } from '../data/gameConfig.ts';
 import * as memoryService from '../services/memoryService.ts';
 import { getEmbedding } from '../services/embeddingService.ts';
+import { sanitizeRoomChallengeProgress } from '../services/challengeStateService.ts';
 
 // Helper to safely parse JSON from localStorage
 const safeJsonParse = <T,>(key: string, defaultValue: T): T => {
@@ -48,6 +49,7 @@ const getMinimalInitialState = (): AppState => ({
         totalCompletionTokens: 0, usageStats: { llm: {}, image: {}, tts: {} }, lastArtPrompt: null, displayedArtifactId: null, equippedArtifactId: null,
         agentPromptHistory: {}, memoryEmbeddings: {}, studioConversationState: null, officeChallengeState: null,
         classroomChallengeState: null, artStudioChallengeState: null, dungeonChallengeState: null, dojoChallengeState: null,
+        roomChallengeProgress: {},
         conversationQueue: [], playerSpeed: GAME_CONFIG.PLAYER_SPEED, runMultiplier: GAME_CONFIG.RUN_MULTIPLIER, difficulty: 'Normal', subtitleDurationMultiplier: 1.0,
         manualSubtitleAdvance: false, agentAutonomyEnabled: false, debriefingState: { active: false, roomId: null }, roomCooldowns: {},
         triggerDiscussion: null,
@@ -126,6 +128,11 @@ export const useAppStore = createWithEqualityFn<AppState & AppActions>()(
             Object.assign(state.services, safeJsonParse('serviceSettings', initialState.services));
             Object.assign(state.game, safeJsonParse('gameProgress', {}), safeJsonParse('gameplaySettings', {}));
             Object.assign(state.ui, safeJsonParse('uiSettings', {}));
+            state.game.roomChallengeProgress = sanitizeRoomChallengeProgress({
+                agents: state.agents,
+                messages: state.messages,
+                game: state.game,
+            });
 
 
             // Robustly merge saved player data into the agent list
@@ -272,6 +279,11 @@ export const useAppStore = createWithEqualityFn<AppState & AppActions>()(
 
         // Mutate the draft state directly
         Object.assign(state, mergedState);
+        state.game.roomChallengeProgress = sanitizeRoomChallengeProgress({
+            agents: state.agents,
+            messages: state.messages,
+            game: state.game,
+        });
     }),
     showToast: (message) => {
       const id = Date.now();

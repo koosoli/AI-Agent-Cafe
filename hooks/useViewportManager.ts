@@ -28,8 +28,6 @@ export const useViewportManager = (
   const prevSessionId = useRef(sessionId);
   const playerRoomId = player?.roomId;
   const prevPlayerRoomId = useRef(playerRoomId);
-  const targetViewportRef = useRef(targetViewport);
-  targetViewportRef.current = targetViewport;
   
   // Effect to track window resizes
   useEffect(() => {
@@ -106,26 +104,18 @@ export const useViewportManager = (
   }, [isWelcomeModalOpen, player?.position.left, player?.position.top, player?.roomId, sessionId, viewportRef, windowSize]);
 
   useEffect(() => {
-    let animationFrameId: number;
-    const lerpFactor = 0.15;
-    const animate = () => {
-      if (!isAnyModalOpen) {
-        setViewport(current => {
-          const target = targetViewportRef.current;
-          const dx = target.offset.x - current.offset.x;
-          const dy = target.offset.y - current.offset.y;
-          const ds = target.scale - current.scale;
-          if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01 && Math.abs(ds) < 0.001) {
-            return current.scale !== target.scale || current.offset.x !== target.offset.x || current.offset.y !== target.offset.y ? target : current;
-          }
-          return { scale: current.scale + ds * lerpFactor, offset: { x: current.offset.x + dx * lerpFactor, y: current.offset.y + dy * lerpFactor } };
-        });
+    if (isAnyModalOpen) return;
+    setViewport(current => {
+      if (
+        Math.abs(current.scale - targetViewport.scale) < 0.001
+        && Math.abs(current.offset.x - targetViewport.offset.x) < 0.01
+        && Math.abs(current.offset.y - targetViewport.offset.y) < 0.01
+      ) {
+        return current;
       }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isAnyModalOpen]);
+      return targetViewport;
+    });
+  }, [isAnyModalOpen, targetViewport]);
   
   useEffect(() => {
     if (!isAutoViewEnabled || !viewportRef.current || !player) {
@@ -174,7 +164,16 @@ export const useViewportManager = (
         newOffsetY = (viewportHeight / (2 * newScale)) - player.position.top;
     }
     
-    setTargetViewport({ scale: newScale, offset: { x: newOffsetX, y: newOffsetY } });
+    setTargetViewport(current => {
+      if (
+        Math.abs(current.scale - newScale) < 0.001
+        && Math.abs(current.offset.x - newOffsetX) < 0.01
+        && Math.abs(current.offset.y - newOffsetY) < 0.01
+      ) {
+        return current;
+      }
+      return { scale: newScale, offset: { x: newOffsetX, y: newOffsetY } };
+    });
     
   }, [
     player?.position.left, 

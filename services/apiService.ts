@@ -2,6 +2,18 @@ import { GoogleGenAI } from "@google/genai";
 import type { LLMProvider } from '../types.ts';
 import { LLMProvider as LLMProviderEnum } from '../types.ts';
 
+const OPENROUTER_MODEL_PREFERENCES = [
+    'openai/gpt-4o-mini',
+    'openai/gpt-4o',
+    'meta-llama/llama-3.3-70b-instruct:free',
+];
+
+const DEFAULT_OPENROUTER_MODELS = [
+    'openai/gpt-4o-mini',
+    'openai/gpt-4o',
+    'meta-llama/llama-3.3-70b-instruct:free',
+];
+
 /**
  * A centralized fetch wrapper. In a production environment with a backend, 
  * this function would be the single point of modification to route all API calls through a secure server-side proxy.
@@ -12,6 +24,29 @@ import { LLMProvider as LLMProviderEnum } from '../types.ts';
 export async function makeApiCall(url: string, options: RequestInit): Promise<Response> {
     // In this client-only version, it's a direct fetch.
     return fetch(url, options);
+}
+
+function getOpenRouterHeaders(apiKey: string): Record<string, string> {
+    return {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'AI Agent Cafe',
+    };
+}
+
+async function resolveOpenRouterTestModel(apiKey: string, requestedModel?: string): Promise<string> {
+    if (requestedModel) {
+        return requestedModel;
+    }
+
+    const models = await fetchOpenRouterModels(apiKey);
+    if (models.length === 0) {
+        return DEFAULT_OPENROUTER_MODELS[0];
+    }
+
+    const preferredModel = OPENROUTER_MODEL_PREFERENCES.find(candidate => models.includes(candidate));
+    return preferredModel || models[0];
 }
 
 /**
@@ -53,18 +88,19 @@ export async function testOpenAICompatible(provider: LLMProvider, apiKey: string
     ? 'https://api.openai.com/v1/chat/completions' 
     : 'https://openrouter.ai/api/v1/chat/completions';
 
-  const headers: Record<string, string> = {
-    'Authorization': `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-  };
+  const headers: Record<string, string> = provider === LLMProviderEnum.OPENROUTER
+    ? getOpenRouterHeaders(apiKey)
+    : {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      };
 
-  if (provider === LLMProviderEnum.OPENROUTER) {
-      headers['HTTP-Referer'] = window.location.href; 
-      headers['X-Title'] = 'AI Agent Cafe';
-  }
+  const resolvedModel = provider === LLMProviderEnum.OPENROUTER
+    ? await resolveOpenRouterTestModel(apiKey, model)
+    : (model || 'gpt-3.5-turbo');
 
   const body = JSON.stringify({
-    model: model || (provider === LLMProviderEnum.OPENAI ? 'gpt-3.5-turbo' : 'mistralai/mistral-7b-instruct:free'),
+    model: resolvedModel,
     messages: [{ role: 'user', content: 'Hi' }],
     max_tokens: 1,
   });
@@ -243,7 +279,7 @@ export async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
 export async function fetchOpenRouterModels(apiKey: string): Promise<string[]> {
     if (!apiKey) return [];
     try {
-        const response = await makeApiCall('https://openrouter.ai/api/v1/models', { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        const response = await makeApiCall('https://openrouter.ai/api/v1/models', { headers: getOpenRouterHeaders(apiKey) });
         if (!response.ok) throw new Error(`Failed to fetch models: HTTP ${response.status}`);
         const data = await response.json();
         return data.data.map((model: any) => model.id).sort();
@@ -252,3 +288,5 @@ export async function fetchOpenRouterModels(apiKey: string): Promise<string[]> {
         return [];
     }
 }
+
+export { DEFAULT_OPENROUTER_MODELS };
